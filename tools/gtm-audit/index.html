@@ -246,6 +246,31 @@ table.diff th { width: 22%; }
 ol.steps { padding-left: 20px; display: flex; flex-direction: column; gap: 6px; margin: 8px 0 16px; }
 ul.plain { padding-left: 18px; display: flex; flex-direction: column; gap: 6px; margin: 8px 0 14px; }
 
+
+/* scope + checklist */
+.scope-row { display: grid; grid-template-columns: 90px 1fr; gap: 10px; align-items: center; margin: 8px 0; }
+@media (max-width: 640px) { .scope-row { grid-template-columns: 1fr; } }
+details.scope-pick { border-top: 1px solid var(--grid); margin-top: 10px; padding-top: 10px; }
+details.scope-pick summary { cursor: pointer; font-weight: 600; font-size: 13.5px; }
+.pickgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 24px; margin: 12px 0; }
+@media (max-width: 800px) { .pickgrid { grid-template-columns: 1fr; } }
+label.pick { display: flex; align-items: flex-start; gap: 8px; padding: 3px 0; color: var(--ink); font-size: 13px; }
+label.pick input { margin-top: 3px; }
+button.pill { background: none; cursor: pointer; font: inherit; font-size: 12px; }
+.cathead { display: flex; align-items: baseline; gap: 12px; margin: 10px 2px 0; }
+.crow { display: grid; grid-template-columns: 96px 1fr auto; gap: 12px; align-items: center; padding: 9px 16px; }
+.crow.na { opacity: .7; }
+.cstat { font-size: 12.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+.cstat.pass { color: var(--good-ink); }
+.cstat.pass .glyph { width: 16px; height: 16px; border-radius: 50%; background: var(--good); color: #fff; display: inline-grid; place-items: center; font-size: 10px; }
+.cstat.na { color: var(--muted); }
+.plats { display: inline-flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.ptag { font-size: 11px; color: var(--ink-2); background: var(--surface-2); border-radius: 5px; padding: 1px 6px; white-space: nowrap; }
+details.issue > summary { grid-template-columns: auto 1fr auto auto; }
+details.outscope summary { cursor: pointer; color: var(--ink-2); }
+#issueList { display: flex; flex-direction: column; gap: 8px; }
+@media (max-width: 640px) { .crow { grid-template-columns: 1fr; } .plats { justify-content: flex-start; } }
+
 /* overlays */
 #tt { position: fixed; z-index: 60; background: var(--surface); color: var(--ink); border: 1px solid var(--ring-strong); border-radius: 8px; padding: 7px 10px; font-size: 12.5px; max-width: 340px; box-shadow: 0 6px 24px rgba(0,0,0,.14); pointer-events: none; }
 .toast { position: fixed; bottom: 18px; left: 50%; transform: translate(-50%, 20px); opacity: 0; background: var(--ink); color: var(--page); padding: 10px 16px; border-radius: 10px; z-index: 70; transition: .2s; max-width: 90vw; pointer-events: none; }
@@ -816,9 +841,7 @@ var GTMCore = (function () {
     // annotate + score
     issues.forEach(function (i, n) { i.key = i.rule; i.n = n; });
     issues.sort(function (a, b) { return SEVERITIES.indexOf(a.severity) - SEVERITIES.indexOf(b.severity) || CATEGORIES.indexOf(a.category) - CATEGORIES.indexOf(b.category); });
-    var penalty = 0;
-    issues.forEach(function (i) { var n = Math.max(1, i.entities.length); penalty += SEV_WEIGHT[i.severity] * (1 + Math.min(n - 1, 4) * 0.25); });
-    var score = Math.round(100 * Math.exp(-penalty / 90));
+    var score = scoreOf(issues);
 
     var byEntity = {};
     issues.forEach(function (i) { i.entities.forEach(function (e) { var k = e.kind + ':' + e.id; (byEntity[k] = byEntity[k] || []).push(i); }); });
@@ -832,6 +855,80 @@ var GTMCore = (function () {
     });
 
     return { model: M, issues: issues, score: score, byEntity: byEntity, inventory: inventory };
+  }
+
+
+  /* ---------- check catalog (every rule, for the full checklist and scoping) ---------- */
+  var PLATFORMS = [
+    { id: 'general', label: 'General (any tag)' }, { id: 'ga4', label: 'GA4 / Google tag' }, { id: 'ads', label: 'Google Ads' },
+    { id: 'floodlight', label: 'Floodlight / CM360' }, { id: 'pixels', label: 'Other vendor pixels' }, { id: 'html', label: 'Custom HTML / JS' }
+  ];
+  var PRESETS = [
+    { id: 'full', label: 'Full audit', desc: 'Every check.' },
+    { id: 'prelaunch', label: 'Pre-launch QA', desc: 'Things that break tracking or block a publish.' },
+    { id: 'conversions', label: 'Conversion tracking', desc: 'GA4, Google Ads and Floodlight conversion setup.' },
+    { id: 'consent', label: 'Consent & privacy', desc: 'Consent settings, PII and vendor inventory.' },
+    { id: 'cleanup', label: 'Cleanup', desc: 'Unused, paused, duplicate and poorly named items.' }
+  ];
+  function has(M, fn) { return M.tags.some(fn); }
+  function nonGoogleActive(M) { return M.tags.some(function (t) { return !t.paused && !t.isGoogle && t.type !== 'gclidw'; }); }
+  var T = 'Tracking correctness', C = 'Consent & privacy', H = 'Hygiene & cleanup', S = 'Security & performance';
+  // id, default severity, category, platforms, presets, what is checked, not-applicable test
+  var RULES = [
+    ['broken-trigger-ref', 'critical', T, ['general'], 'prelaunch conversions', 'Every trigger a tag points to exists in the container.', function (M) { return !M.tags.length; }],
+    ['unresolved-variable', 'critical', T, ['general'], 'prelaunch conversions', 'Every {{variable}} used in tags, triggers and variables exists.', null],
+    ['builtin-not-enabled', 'high', T, ['general'], 'prelaunch conversions', 'Built-in variables in use are enabled.', null],
+    ['missing-sequence-tag', 'critical', T, ['general'], 'prelaunch', 'Setup and cleanup tags in tag sequencing exist.', function (M) { return !has(M, function (t) { return t.setup.length || t.teardown.length; }); }],
+    ['trigger-group-missing', 'critical', T, ['general'], 'prelaunch', 'Trigger groups only include triggers that exist.', function (M) { return !M.triggers.some(function (t) { return t.type === 'triggerGroup'; }); }],
+    ['no-firing-trigger', 'high', T, ['general'], 'prelaunch cleanup', 'Every active tag has a firing trigger (or runs in a tag sequence).', function (M) { return !M.tags.length; }],
+    ['blocked-by-own-trigger', 'high', T, ['general'], 'prelaunch', 'No tag uses the same trigger as both a firing trigger and an exception.', function (M) { return !M.tags.length; }],
+    ['custom-event-empty', 'high', T, ['general'], 'prelaunch conversions', 'Custom Event triggers have an event name.', function (M) { return !M.triggers.some(function (t) { return t.type === 'customEvent'; }); }],
+    ['duplicate-tags', 'high', T, ['general'], 'prelaunch conversions', 'No two active tags with identical settings fire on the same trigger.', function (M) { return M.tags.length < 2; }],
+    ['deprecated-tags', 'high', T, ['ga4'], 'prelaunch cleanup', 'No Universal Analytics, Classic GA or Google Optimize tags or UA settings variables.', null],
+    ['ga4-missing-id', 'high', T, ['ga4'], 'prelaunch conversions', 'Google tags have a tag ID / measurement ID.', function (M) { return !has(M, function (t) { return t.type === 'googtag' || t.type === 'gaawc'; }); }],
+    ['ga4-event-no-name', 'high', T, ['ga4'], 'prelaunch conversions', 'GA4 Event tags have an event name.', function (M) { return !has(M, function (t) { return t.type === 'gaawe'; }); }],
+    ['duplicate-google-tag', 'medium', T, ['ga4'], 'prelaunch conversions', 'Each Google tag ID is loaded by only one active tag.', function (M) { return !has(M, function (t) { return t.type === 'googtag' || t.type === 'gaawc'; }); }],
+    ['ads-missing-id', 'high', T, ['ads'], 'prelaunch conversions', 'Google Ads conversion tags have a Conversion ID and Label.', function (M) { return !has(M, function (t) { return t.type === 'awct'; }); }],
+    ['no-conversion-linker', 'high', T, ['ads', 'floodlight'], 'prelaunch conversions', 'An active Conversion Linker exists when Google Ads or Floodlight tags are active.', function (M) { return !has(M, function (t) { return !t.paused && /^(awct|fls|flc|sp)$/.test(t.type); }); }],
+    ['conversion-all-pages', 'medium', T, ['ads'], 'prelaunch conversions', 'Google Ads conversion tags do not fire on every page.', function (M) { return !has(M, function (t) { return t.type === 'awct'; }); }],
+    ['conversion-unlimited', 'medium', T, ['ads', 'floodlight'], 'conversions', 'Conversion tags are not set to fire Unlimited times.', function (M) { return !has(M, function (t) { return /^(awct|fls|flc|awud)$/.test(t.type); }); }],
+    ['floodlight-missing-fields', 'high', T, ['floodlight'], 'prelaunch conversions', 'Floodlight tags have Advertiser ID, Group Tag String and Activity Tag String.', function (M) { return !has(M, function (t) { return t.type === 'flc' || t.type === 'fls'; }); }],
+    ['floodlight-no-order-id', 'medium', T, ['floodlight'], 'conversions', 'Floodlight Sales tags pass an Order ID.', function (M) { return !has(M, function (t) { return t.type === 'fls'; }); }],
+    ['no-consent-default', 'medium', C, ['general'], 'prelaunch consent', 'A Consent Mode default or CMP tag fires on Consent Initialization.', null],
+    ['consent-not-set', 'medium', C, ['pixels', 'html'], 'prelaunch consent', 'Active non-Google tags have a consent setting.', function (M) { return !nonGoogleActive(M); }],
+    ['consent-needed-no-types', 'medium', C, ['general'], 'consent', 'Tags that require consent list the consent types.', function (M) { return !has(M, function (t) { return t.consentStatus === 'needed'; }); }],
+    ['pii-literal', 'high', C, ['general'], 'prelaunch consent', 'No email addresses are hard-coded in tag settings.', null],
+    ['pii-variable', 'medium', C, ['pixels', 'html', 'ga4'], 'consent', 'Variables named like email, phone, name or address are not passed to non-enhanced-conversion tags.', null],
+    ['third-party-domains', 'info', S, ['pixels', 'html'], 'consent', 'Inventory of outside domains loaded by Custom HTML / Image tags.', function (M) { return !has(M, function (t) { return t.type === 'html' || t.type === 'img'; }); }],
+    ['http-resource', 'high', S, ['html', 'pixels'], 'prelaunch', 'Custom HTML and Image tags load resources over https.', function (M) { return !has(M, function (t) { return t.type === 'html' || t.type === 'img'; }); }],
+    ['jsm-no-return', 'high', S, ['html'], 'prelaunch', 'Custom JavaScript variables return a value.', function (M) { return !M.variables.some(function (v) { return v.type === 'jsm'; }); }],
+    ['document-write', 'medium', S, ['html'], 'cleanup', 'Custom HTML tags do not use document.write.', function (M) { return !has(M, function (t) { return t.type === 'html'; }); }],
+    ['eval', 'medium', S, ['html'], 'cleanup', 'Custom HTML tags do not use eval() or new Function().', function (M) { return !has(M, function (t) { return t.type === 'html'; }); }],
+    ['html-all-pages', 'info', S, ['html'], 'cleanup', 'Lists Custom HTML tags that load on every page.', function (M) { return !has(M, function (t) { return t.type === 'html'; }); }],
+    ['many-all-pages', 'low', S, ['general'], 'cleanup', 'No more than 15 active tags fire on every page.', function (M) { return !M.tags.length; }],
+    ['similar-tags', 'low', H, ['general'], 'cleanup', 'No two active tags have identical settings on different triggers.', function (M) { return M.tags.length < 2; }],
+    ['paused-tags', 'low', H, ['general'], 'cleanup', 'No paused tags left in the container.', function (M) { return !M.tags.length; }],
+    ['unused-triggers', 'low', H, ['general'], 'cleanup', 'Every trigger is used by a tag or trigger group.', function (M) { return !M.triggers.length; }],
+    ['unused-variables', 'low', H, ['general'], 'cleanup', 'Every user-defined variable is referenced somewhere.', function (M) { return !M.variables.length; }],
+    ['default-names', 'low', H, ['general'], 'cleanup', 'No default or "Copy of" names.', null],
+    ['all-pages-plus', 'low', H, ['general'], 'cleanup', 'Tags on All Pages do not also have extra page view triggers.', function (M) { return !M.tags.length; }],
+    ['empty-folders', 'info', H, ['general'], 'cleanup', 'No empty folders.', function (M) { return !M.folders.length; }],
+    ['unfoldered', 'info', H, ['general'], 'cleanup', 'Every item is in a folder (when folders are used).', function (M) { return !M.folders.length; }]
+  ].map(function (r) { return { id: r[0], severity: r[1], category: r[2], platforms: r[3], presets: ('full ' + r[4]).split(' '), check: r[5], na: r[6] }; });
+  var RULE_BY_ID = {}; RULES.forEach(function (r) { RULE_BY_ID[r.id] = r; });
+
+  function scoreOf(issues) {
+    var penalty = 0;
+    issues.forEach(function (i) { var n = Math.max(1, i.entities.length); penalty += SEV_WEIGHT[i.severity] * (1 + Math.min(n - 1, 4) * 0.25); });
+    return Math.round(100 * Math.exp(-penalty / 90));
+  }
+  function checklist(A) {
+    var byRule = {}; A.issues.forEach(function (i) { byRule[i.rule] = i; });
+    return RULES.map(function (r) {
+      var issue = byRule[r.id] || null;
+      var status = issue ? 'fail' : (r.na && r.na(A.model)) ? 'na' : 'pass';
+      return { rule: r, issue: issue, status: status, severity: issue ? issue.severity : r.severity };
+    });
   }
 
   /* ---------- diff ---------- */
@@ -941,7 +1038,7 @@ var GTMCore = (function () {
 
   return {
     parseExport: parseExport, analyze: analyze, diffVersions: diffVersions,
-    SEVERITIES: SEVERITIES, CATEGORIES: CATEGORIES, BUILTIN_TRIGGERS: BUILTIN_TRIGGERS, ALL_PAGES: ALL_PAGES
+    SEVERITIES: SEVERITIES, CATEGORIES: CATEGORIES, RULES: RULES, RULE_BY_ID: RULE_BY_ID, PRESETS: PRESETS, PLATFORMS: PLATFORMS, scoreOf: scoreOf, checklist: checklist, BUILTIN_TRIGGERS: BUILTIN_TRIGGERS, ALL_PAGES: ALL_PAGES
   };
 })();
 if (typeof module !== 'undefined') module.exports = GTMCore;
@@ -1052,6 +1149,58 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
     map: { q: '', vars: true }
   };
   var TABS = ['overview', 'issues', 'explorer', 'map', 'compare', 'help'];
+  S.iss.status = '';
+  S.ui = { pickOpen: false };
+  var PLAT_IDS = C.PLATFORMS.map(function (p) { return p.id; });
+  S.scope = { preset: 'full', plats: {}, on: {}, custom: false, ver: 0 };
+  PLAT_IDS.forEach(function (p) { S.scope.plats[p] = 1; });
+  function toSet(a) { var o = {}; a.forEach(function (x) { o[x] = 1; }); return o; }
+  function allPlats() { return PLAT_IDS.every(function (p) { return S.scope.plats[p]; }); }
+  function baseIds() { return C.RULES.filter(function (r) { return r.presets.indexOf(S.scope.preset) >= 0 && r.platforms.some(function (p) { return S.scope.plats[p]; }); }).map(function (r) { return r.id; }); }
+  function isOn(id) { return !!S.scope.on[id]; }
+  function presetLabel(id) { return C.PRESETS.filter(function (p) { return p.id === id; })[0].label; }
+  function platLabel(id) { return C.PLATFORMS.filter(function (p) { return p.id === id; })[0].label; }
+  function scopeName() {
+    var onP = PLAT_IDS.filter(function (p) { return S.scope.plats[p]; }), offP = PLAT_IDS.filter(function (p) { return !S.scope.plats[p]; });
+    var pl = allPlats() ? '' : !onP.length ? ', no platforms' : offP.length < onP.length ? ', without ' + offP.map(platLabel).join(', ') : ', only ' + onP.map(platLabel).join(', ');
+    return presetLabel(S.scope.preset) + pl + (S.scope.custom ? ' (customized)' : '');
+  }
+  function scopeCount() { return Object.keys(S.scope.on).length; }
+  function isFullScope() { return scopeCount() === C.RULES.length; }
+  function applyBase(silent) { S.scope.on = toSet(baseIds()); S.scope.custom = false; if (!silent) scopeChanged(); }
+  function scopeChanged() { S.scope.ver++; writeScopeUrl(); if (S.cur) { renderHeader(); render(); } }
+  function SC(A) {
+    if (A._scv === S.scope.ver) return A._sc;
+    var issues = A.issues.filter(function (i) { return isOn(i.rule); });
+    var byEntity = {};
+    issues.forEach(function (i) { i.entities.forEach(function (e) { var k = e.kind + ':' + e.id; (byEntity[k] = byEntity[k] || []).push(i); }); });
+    A._sc = { issues: issues, score: C.scoreOf(issues), byEntity: byEntity, checklist: A._cl || (A._cl = C.checklist(A)) };
+    A._scv = S.scope.ver;
+    return A._sc;
+  }
+  function writeScopeUrl() {
+    try {
+      var p = [], base = toSet(baseIds());
+      if (S.scope.preset !== 'full') p.push('scope=' + S.scope.preset);
+      if (!allPlats()) p.push('plat=' + PLAT_IDS.filter(function (x) { return S.scope.plats[x]; }).join('.'));
+      var off = Object.keys(base).filter(function (id) { return !S.scope.on[id]; });
+      var on = Object.keys(S.scope.on).filter(function (id) { return !base[id]; });
+      if (off.length) p.push('off=' + off.join('.'));
+      if (on.length) p.push('on=' + on.join('.'));
+      history.replaceState(null, '', location.pathname + (p.length ? '?' + p.join('&') : '') + location.hash);
+    } catch (e) { }
+  }
+  function readScopeUrl() {
+    var q = {};
+    try { location.search.replace(/^\?/, '').split('&').forEach(function (kv) { var i = kv.indexOf('='); if (i > 0) q[kv.slice(0, i)] = decodeURIComponent(kv.slice(i + 1)); }); } catch (e) { }
+    if (q.scope && C.PRESETS.some(function (p) { return p.id === q.scope; })) S.scope.preset = q.scope;
+    if (q.plat != null) { var pl = toSet(q.plat.split(/[.,]/)); PLAT_IDS.forEach(function (p) { S.scope.plats[p] = pl[p] ? 1 : 0; }); }
+    applyBase(true);
+    (q.off || '').split(/[.,]/).forEach(function (id) { if (S.scope.on[id]) { delete S.scope.on[id]; S.scope.custom = true; } });
+    (q.on || '').split(/[.,]/).forEach(function (id) { if (C.RULE_BY_ID[id] && !S.scope.on[id]) { S.scope.on[id] = 1; S.scope.custom = true; } });
+  }
+  readScopeUrl();
+
   var SEV_LABEL = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low', info: 'Info' };
   var SEV_GLYPH = { critical: '■', high: '▲', medium: '◆', low: '●', info: 'i' };
   var KIND_LABEL = { tag: 'Tag', trigger: 'Trigger', variable: 'Variable', folder: 'Folder' };
@@ -1170,7 +1319,7 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
   function go(tab) {
     if (TABS.indexOf(tab) < 0) tab = 'overview';
     S.tab = tab;
-    if (location.hash !== '#' + tab) { try { history.replaceState(null, '', '#' + tab); } catch (e) { location.hash = tab; } }
+    if (location.hash !== '#' + tab) { try { history.replaceState(null, '', location.pathname + location.search + '#' + tab); } catch (e) { location.hash = tab; } }
     render();
     window.scrollTo(0, 0);
   }
@@ -1199,10 +1348,22 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
     else if (d === 'copy-diff') copyText(diffText());
     else if (d === 'copy-summary') copyText(S.diff.summary);
     else if (d === 'clear-cmp') { S.prev = null; S.diff = null; renderHeader(); render(); }
+    else if (d === 'preset') { S.scope.preset = a.getAttribute('data-id'); applyBase(); }
+    else if (d === 'plat') { var pid = a.getAttribute('data-id'); S.scope.plats[pid] = S.scope.plats[pid] ? 0 : 1; applyBase(); }
+    else if (d === 'scope-reset') { S.scope.preset = 'full'; PLAT_IDS.forEach(function (p) { S.scope.plats[p] = 1; }); applyBase(); }
+    else if (d === 'pick-all') { S.scope.on = toSet(C.RULES.map(function (r) { return r.id; })); S.scope.custom = true; scopeChanged(); }
+    else if (d === 'pick-none') { S.scope.on = {}; S.scope.custom = true; scopeChanged(); }
+    else if (d === 'copy-scope') copyText(location.href);
     else if (d === 'sev') { var s = a.getAttribute('data-sev'); S.iss.sev[s] = S.iss.sev[s] ? 0 : 1; render(); }
     else if (d === 'kind') { S.exp.kind = a.getAttribute('data-kind'); S.exp.type = ''; S.exp.status = ''; render(); }
     else if (d === 'pick') { S.exp.sel = { kind: a.getAttribute('data-kind'), id: a.getAttribute('data-id') }; renderExplorerDetail(); markSelected(); var dd = $('#detail'); if (dd && innerWidth < 980) dd.scrollIntoView({ behavior: 'smooth' }); }
   });
+  document.addEventListener('change', function (e) {
+    var id = e.target.getAttribute && e.target.getAttribute('data-check'); if (!id) return;
+    if (e.target.checked) S.scope.on[id] = 1; else delete S.scope.on[id];
+    S.scope.custom = true; S.ui.pickOpen = true; scopeChanged();
+  });
+  document.addEventListener('toggle', function (e) { if (e.target.classList && e.target.classList.contains('scope-pick')) S.ui.pickOpen = e.target.open; }, true);
   document.addEventListener('input', function (e) {
     var k = e.target.getAttribute('data-bind'); if (!k) return;
     var v = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
@@ -1218,8 +1379,8 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
     if (!S.cur) { h.innerHTML = ''; return; }
     var m = S.cur.model.meta;
     h.innerHTML = '<span class="ctx-name">' + esc(m.container.name) + '</span><span class="pill">' + esc(m.container.publicId || 'no public ID') + '</span><span class="pill">v' + esc(m.versionId) + (m.versionName ? ': ' + esc(m.versionName) : '') + '</span>' +
-      (S.prev ? '<span class="pill alt">comparing with v' + esc(S.prev.model.meta.versionId) + '</span>' : '') + (S.demo ? '<span class="pill warn">Demo data (fictional)</span>' : '');
-    var n = S.cur.issues.filter(function (i) { return i.severity !== 'info'; }).reduce(function (s, i) { return s + findings(i); }, 0);
+      (S.prev ? '<span class="pill alt">comparing with v' + esc(S.prev.model.meta.versionId) + '</span>' : '') + (S.demo ? '<span class="pill warn">Demo data (fictional)</span>' : '') + (!isFullScope() || S.scope.custom ? '<button class="pill alt" data-tab="issues">Scope: ' + esc(scopeName()) + '</button>' : '');
+    var n = SC(S.cur).issues.filter(function (i) { return i.severity !== 'info'; }).reduce(function (s, i) { return s + findings(i); }, 0);
     $('#tabIssuesCount').textContent = n;
     $('#tabCmpCount').textContent = S.diff ? (S.diff.added.length + S.diff.removed.length + S.diff.changed.length) : '';
   }
@@ -1256,12 +1417,12 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
     var A = S.cur, M = A.model, m = M.meta;
     var active = M.tags.filter(function (t) { return !t.paused; }).length;
     var sevCount = {}; C.SEVERITIES.forEach(function (s) { sevCount[s] = 0; });
-    A.issues.forEach(function (i) { sevCount[i.severity] += findings(i); });
-    var st = scoreStatus(A.score);
+    SC(A).issues.forEach(function (i) { sevCount[i.severity] += findings(i); });
+    var st = scoreStatus(SC(A).score);
     var h = '<section class="meta card"><div><div class="eyebrow">Container</div><div class="big">' + esc(m.container.name) + '</div><div class="muted">' + esc(m.container.publicId) + (m.container.usageContext ? ' · ' + esc(m.container.usageContext) : '') + ' · Account ' + esc(m.container.accountId) + ' · Container ' + esc(m.container.containerId) + '</div></div>' +
       '<div><div class="eyebrow">Version</div><div class="big">' + esc(m.versionId) + (m.versionName ? ' <span class="muted small">' + esc(m.versionName) + '</span>' : '') + '</div><div class="muted">Exported ' + esc(m.exportTime || 'unknown') + ' · ' + esc(m.fileName) + '</div></div></section>';
     h += '<section class="tiles">' +
-      '<div class="tile"><div class="tl">Health score</div><div class="tv">' + A.score + '<span class="of">/100</span></div><div class="status st-' + st[0] + '"><span class="glyph" aria-hidden="true">' + (st[0] === 'good' ? '✓' : st[0] === 'warning' ? '!' : '■') + '</span>' + st[1] + '</div><div class="tiny muted">Guide only: weighted by issue severity</div></div>' +
+      '<div class="tile"><div class="tl">Health score</div><div class="tv">' + SC(A).score + '<span class="of">/100</span></div><div class="status st-' + st[0] + '"><span class="glyph" aria-hidden="true">' + (st[0] === 'good' ? '✓' : st[0] === 'warning' ? '!' : '■') + '</span>' + st[1] + '</div><div class="tiny muted">Guide only, weighted by severity. Scope: <a href="#issues" data-tab="issues">' + esc(scopeName()) + '</a> (' + scopeCount() + ' checks)</div></div>' +
       '<div class="tile clickable" data-tab="explorer"><div class="tl">Tags</div><div class="tv">' + M.tags.length + '</div><div class="muted">' + active + ' active · ' + (M.tags.length - active) + ' paused</div></div>' +
       '<div class="tile"><div class="tl">Triggers</div><div class="tv">' + M.triggers.length + '</div><div class="muted">' + M.triggers.filter(function (t) { return t.firesTags.length || t.blocksTags.length || t.inGroups.length; }).length + ' in use</div></div>' +
       '<div class="tile"><div class="tl">Variables</div><div class="tv">' + M.variables.length + '</div><div class="muted">+ ' + m.builtIns.length + ' built-in enabled</div></div>' +
@@ -1275,7 +1436,7 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
     if (typeRows.length > 12) { var rest = typeRows.slice(11); typeRows = typeRows.slice(0, 11); typeRows.push({ label: 'Other (' + rest.length + ' types)', value: rest.reduce(function (s, r) { return s + r.value; }, 0), tip: rest.map(function (r) { return esc(r.label) + ': ' + r.value; }).join('<br>') }); }
 
     var catRows = C.CATEGORIES.map(function (cat) {
-      var segs = C.SEVERITIES.map(function (s) { var n = A.issues.filter(function (i) { return i.category === cat && i.severity === s; }).reduce(function (x, i) { return x + findings(i); }, 0); return { key: s, value: n }; });
+      var segs = C.SEVERITIES.map(function (s) { var n = SC(A).issues.filter(function (i) { return i.category === cat && i.severity === s; }).reduce(function (x, i) { return x + findings(i); }, 0); return { key: s, value: n }; });
       return { label: cat, segs: segs };
     });
 
@@ -1302,7 +1463,7 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
       '</section>';
 
     // top issues + inventory
-    var top = A.issues.filter(function (i) { return i.severity === 'critical' || i.severity === 'high'; }).slice(0, 6);
+    var top = SC(A).issues.filter(function (i) { return i.severity === 'critical' || i.severity === 'high'; }).slice(0, 6);
     h += '<section class="grid2">' +
       '<div class="card"><div class="card-h"><h2>Fix first</h2><button class="btn small ghost" data-tab="issues">All findings →</button></div>' +
       (top.length ? '<ul class="toplist">' + top.map(function (i) { return '<li>' + sevBadge(i.severity) + '<div><div class="b">' + esc(i.title) + '</div><div class="muted small">' + (i.entities.length ? esc(i.entities.slice(0, 3).map(function (e) { return e.name; }).join(', ')) + (i.entities.length > 3 ? ' +' + (i.entities.length - 3) + ' more' : '') : 'Container-wide') + '</div></div></li>'; }).join('') + '</ul>' : '<p class="muted">No critical or high findings. Nice.</p>') + '</div>' +
@@ -1351,55 +1512,114 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
       '<div class="legend col">' + segs.map(function (s) { return '<span><i class="sw cat-' + s.key + '"></i>' + esc(s.label) + ' <b>' + s.value + '</b></span>'; }).join('') + '</div>';
   }
 
-  /* ---------- issues ---------- */
+  /* ---------- findings: full checklist + scope ---------- */
+  var STATUS_LABEL = { fail: 'Failed', pass: 'Passed', na: 'Not applicable' };
+  function scopeCard() {
+    var changed = S.scope.preset !== 'full' || S.scope.custom || !allPlats();
+    return '<section class="card scope"><div class="card-h"><div><h2>Audit scope</h2><div class="muted small"><b>' + esc(scopeName()) + '</b> · ' + scopeCount() + ' of ' + C.RULES.length + ' checks. The score, Overview counts, Explorer flags, map and copied checklist all follow this scope.</div></div>' +
+      '<div class="row gap wrap"><button class="btn small" data-do="copy-scope">Copy link with this scope</button>' + (changed ? '<button class="btn small ghost" data-do="scope-reset">Reset to full audit</button>' : '') + '</div></div>' +
+      '<div class="scope-row"><span class="eyebrow">Preset</span><div class="row gap wrap">' + C.PRESETS.map(function (p) { var on = S.scope.preset === p.id; return '<button class="toggle' + (on ? ' on' : '') + '" data-do="preset" data-id="' + p.id + '" aria-pressed="' + on + '" data-tip="' + esc('<b>' + esc(p.label) + '</b><br>' + esc(p.desc)) + '">' + esc(p.label) + '</button>'; }).join('') + '</div></div>' +
+      '<div class="scope-row"><span class="eyebrow">Platforms</span><div class="row gap wrap">' + C.PLATFORMS.map(function (p) { var on = !!S.scope.plats[p.id]; return '<button class="toggle' + (on ? ' on' : '') + '" data-do="plat" data-id="' + p.id + '" aria-pressed="' + on + '">' + (on ? '✓ ' : '') + esc(p.label) + '</button>'; }).join('') + '</div></div>' +
+      '<details class="scope-pick"' + (S.ui.pickOpen ? ' open' : '') + '><summary>Choose individual checks' + (S.scope.custom ? ' (customized)' : '') + '</summary><div class="pickgrid">' +
+      C.CATEGORIES.map(function (cat) {
+        return '<div><div class="eyebrow">' + esc(cat) + '</div>' + C.RULES.filter(function (r) { return r.category === cat; }).map(function (r) {
+          return '<label class="check pick"><input type="checkbox" data-check="' + r.id + '"' + (isOn(r.id) ? ' checked' : '') + '><span>' + esc(r.check) + ' <span class="muted tiny">' + esc(r.platforms.map(platLabel).join(', ')) + '</span></span></label>';
+        }).join('') + '</div>';
+      }).join('') + '</div><div class="row gap"><button class="btn small" data-do="pick-all">Select all</button><button class="btn small" data-do="pick-none">Clear all</button></div></details></section>';
+  }
+  function scopedRows() { return SC(S.cur).checklist.filter(function (x) { return isOn(x.rule.id); }); }
   function viewIssues() {
-    var A = S.cur, cnt = {};
-    C.SEVERITIES.forEach(function (s) { cnt[s] = 0; });
-    A.issues.forEach(function (i) { cnt[i.severity] += findings(i); });
-    return '<section class="toolbar card">' +
-      '<div class="row gap wrap">' + C.SEVERITIES.map(function (s) { return '<button class="toggle' + (S.iss.sev[s] ? ' on' : '') + '" data-do="sev" data-sev="' + s + '" aria-pressed="' + !!S.iss.sev[s] + '">' + sevBadge(s, cnt[s]) + '</button>'; }).join('') + '</div>' +
+    var rows = scopedRows(), cnt = { pass: 0, fail: 0, na: 0 }, sevCnt = {};
+    C.SEVERITIES.forEach(function (s) { sevCnt[s] = 0; });
+    rows.forEach(function (x) { cnt[x.status]++; if (x.status === 'fail') sevCnt[x.severity]++; });
+    var out = C.RULES.length - rows.length;
+    return scopeCard() +
+      '<section class="tiles">' +
+      '<div class="tile"><div class="tl">Checks failed</div><div class="tv">' + cnt.fail + '</div><div class="sevrow">' + ['critical', 'high', 'medium', 'low', 'info'].filter(function (s) { return sevCnt[s]; }).map(function (s) { return sevBadge(s, sevCnt[s]); }).join('') + '</div></div>' +
+      '<div class="tile"><div class="tl">Checks passed</div><div class="tv">' + cnt.pass + '</div><div class="status st-good"><span class="glyph" aria-hidden="true">✓</span>Nothing to fix</div></div>' +
+      '<div class="tile"><div class="tl">Not applicable</div><div class="tv">' + cnt.na + '</div><div class="muted small">Nothing in the container for these to check</div></div>' +
+      '<div class="tile"><div class="tl">Health score (this scope)</div><div class="tv">' + SC(S.cur).score + '<span class="of">/100</span></div><div class="muted small">' + (out ? out + ' checks out of scope' : 'All checks in scope') + '</div></div></section>' +
+      '<section class="toolbar card">' +
+      '<div class="row gap wrap"><select data-bind="iss.status" aria-label="Status"><option value="">All statuses</option>' + ['fail', 'pass', 'na'].map(function (k) { return '<option value="' + k + '"' + (S.iss.status === k ? ' selected' : '') + '>' + STATUS_LABEL[k] + ' (' + cnt[k] + ')</option>'; }).join('') + '</select>' +
+      C.SEVERITIES.map(function (s) { return '<button class="toggle' + (S.iss.sev[s] ? ' on' : '') + '" data-do="sev" data-sev="' + s + '" aria-pressed="' + !!S.iss.sev[s] + '">' + sevBadge(s) + '</button>'; }).join('') + '</div>' +
       '<div class="row gap wrap"><select data-bind="iss.cat" aria-label="Category"><option value="">All categories</option>' + C.CATEGORIES.map(function (c) { return '<option' + (S.iss.cat === c ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select>' +
-      '<input type="search" placeholder="Search findings or names" data-bind="iss.q" value="' + esc(S.iss.q) + '" aria-label="Search findings">' +
+      '<input type="search" placeholder="Search checks or names" data-bind="iss.q" value="' + esc(S.iss.q) + '" aria-label="Search checks">' +
       '<button class="btn" data-do="copy-issues">Copy as checklist</button></div></section><section id="issueList"></section>';
   }
-  function filteredIssues() {
+  function filteredRows() {
     var q = S.iss.q.toLowerCase();
-    return S.cur.issues.filter(function (i) {
-      if (!S.iss.sev[i.severity]) return false;
-      if (S.iss.cat && i.category !== S.iss.cat) return false;
-      if (q && (i.title + ' ' + i.why + ' ' + i.entities.map(function (e) { return e.name + ' ' + e.note; }).join(' ')).toLowerCase().indexOf(q) < 0) return false;
+    var order = { fail: 0, pass: 1, na: 2 };
+    return scopedRows().filter(function (x) {
+      if (S.iss.status && x.status !== S.iss.status) return false;
+      if (!S.iss.sev[x.severity]) return false;
+      if (S.iss.cat && x.rule.category !== S.iss.cat) return false;
+      if (q) {
+        var hay = x.rule.check + ' ' + x.rule.platforms.map(platLabel).join(' ') + (x.issue ? ' ' + x.issue.title + ' ' + x.issue.why + ' ' + x.issue.entities.map(function (e) { return e.name + ' ' + e.note; }).join(' ') : '');
+        if (hay.toLowerCase().indexOf(q) < 0) return false;
+      }
       return true;
-    });
+    }).sort(function (a, b) { return order[a.status] - order[b.status] || C.SEVERITIES.indexOf(a.severity) - C.SEVERITIES.indexOf(b.severity); });
   }
   function renderIssueList() {
     var el = $('#issueList'); if (!el) return;
-    var list = filteredIssues();
-    if (!list.length) { el.innerHTML = '<div class="card"><p class="muted">No findings match these filters.</p></div>'; return; }
-    el.innerHTML = list.map(function (i) {
-      var open = i.severity === 'critical' || i.severity === 'high';
-      return '<details class="issue card sevborder-' + i.severity + '"' + (open ? ' open' : '') + '><summary>' + sevBadge(i.severity) + '<span class="it">' + esc(i.title) + '</span><span class="muted small">' + esc(i.category) + '</span><span class="count">' + (i.entities.length ? plural(i.entities.length, 'item') : 'Container-wide') + '</span></summary>' +
-        '<div class="ib"><p>' + esc(i.why) + '</p>' +
-        (i.entities.length ? '<ul class="ents">' + i.entities.map(function (e) { return '<li>' + entChip(e) + ' <span class="muted small">' + esc(e.note) + '</span></li>'; }).join('') + '</ul>' : '') +
-        '<div class="fix"><b>How to fix:</b> ' + esc(i.fix) + '</div></div></details>';
-    }).join('');
+    var rows = filteredRows();
+    var html = '';
+    if (!scopeCount()) html = '<div class="card"><p class="muted">No checks are in scope. Pick a preset, turn on a platform, or tick checks above.</p></div>';
+    else if (!rows.length) html = '<div class="card"><p class="muted">No checks match these filters.</p></div>';
+    C.CATEGORIES.forEach(function (cat) {
+      var list = rows.filter(function (x) { return x.rule.category === cat; });
+      if (!list.length) return;
+      var f = list.filter(function (x) { return x.status === 'fail'; }).length, p = list.filter(function (x) { return x.status === 'pass'; }).length, n = list.length - f - p;
+      html += '<div class="cathead"><h2>' + esc(cat) + '</h2><span class="muted small">' + f + ' failed · ' + p + ' passed' + (n ? ' · ' + n + ' not applicable' : '') + '</span></div>';
+      html += list.map(function (x) {
+        var plats = '<span class="plats">' + x.rule.platforms.map(function (p) { return '<span class="ptag">' + esc(platLabel(p)) + '</span>'; }).join('') + '</span>';
+        if (x.status !== 'fail') {
+          return '<div class="crow card ' + x.status + '"><span class="cstat ' + x.status + '">' + (x.status === 'pass' ? '<span class="glyph" aria-hidden="true">✓</span>Passed' : 'N/A') + '</span><span class="ctext">' + esc(x.rule.check) + '</span>' + plats + '</div>';
+        }
+        var i = x.issue, open = i.severity === 'critical' || i.severity === 'high';
+        return '<details class="issue card sevborder-' + i.severity + '"' + (open ? ' open' : '') + '><summary>' + sevBadge(i.severity) + '<span class="it">' + esc(i.title) + '</span>' + plats + '<span class="count">' + (i.entities.length ? plural(i.entities.length, 'item') : 'Container-wide') + '</span></summary>' +
+          '<div class="ib"><p class="muted small">Check: ' + esc(x.rule.check) + '</p><p>' + esc(i.why) + '</p>' +
+          (i.entities.length ? '<ul class="ents">' + i.entities.map(function (e) { return '<li>' + entChip(e) + ' <span class="muted small">' + esc(e.note) + '</span></li>'; }).join('') + '</ul>' : '') +
+          '<div class="fix"><b>How to fix:</b> ' + esc(i.fix) + '</div></div></details>';
+      }).join('');
+    });
+    var outRules = C.RULES.filter(function (r) { return !isOn(r.id); });
+    if (outRules.length) {
+      var cl = {}; SC(S.cur).checklist.forEach(function (x) { cl[x.rule.id] = x; });
+      html += '<details class="card outscope"><summary>' + plural(outRules.length, 'check') + ' not in this scope</summary><ul class="plain small">' + outRules.map(function (r) {
+        var x = cl[r.id];
+        return '<li>' + esc(r.check) + ' <span class="muted">(' + (x.status === 'fail' ? 'would fail: ' + SEV_LABEL[x.severity] : STATUS_LABEL[x.status].toLowerCase()) + ')</span></li>';
+      }).join('') + '</ul></details>';
+    }
+    el.innerHTML = html;
   }
   function entChip(e) {
     if (e.kind === 'folder') return '<span class="chip">Folder: ' + esc(e.name) + '</span>';
     return '<button class="chip ent" data-go="' + e.kind + ':' + esc(e.id) + '"><span class="k">' + KIND_LABEL[e.kind] + '</span>' + esc(e.name) + '</button>';
   }
   function issuesText() {
-    var m = S.cur.model.meta, list = filteredIssues();
-    var out = ['GTM audit: ' + m.container.name + ' (' + m.container.publicId + ') version ' + m.versionId + (m.versionName ? ' "' + m.versionName + '"' : ''), 'Health score: ' + S.cur.score + '/100 (guide only)', ''];
-    list.forEach(function (i) {
-      out.push('⬜ [' + SEV_LABEL[i.severity].toUpperCase() + '] ' + i.title + ' (' + i.category + ')');
-      i.entities.forEach(function (e) { out.push('    - ' + KIND_LABEL[e.kind] + ': ' + e.name + (e.note ? ': ' + e.note : '')); });
-      if (!i.entities.length) out.push('    - ' + i.why);
-      out.push('    Fix: ' + i.fix);
+    var m = S.cur.model.meta, rows = filteredRows();
+    var out = ['GTM audit: ' + m.container.name + ' (' + m.container.publicId + ') version ' + m.versionId + (m.versionName ? ' "' + m.versionName + '"' : ''),
+      'Scope: ' + scopeName() + ' (' + scopeCount() + ' of ' + C.RULES.length + ' checks)',
+      'Health score for this scope: ' + SC(S.cur).score + '/100 (guide only)',
+      'Result: ' + rows.filter(function (x) { return x.status === 'fail'; }).length + ' failed, ' + rows.filter(function (x) { return x.status === 'pass'; }).length + ' passed, ' + rows.filter(function (x) { return x.status === 'na'; }).length + ' not applicable', ''];
+    C.CATEGORIES.forEach(function (cat) {
+      var list = rows.filter(function (x) { return x.rule.category === cat; });
+      if (!list.length) return;
+      out.push(cat.toUpperCase());
+      list.forEach(function (x) {
+        if (x.status === 'pass') { out.push('✅ ' + x.rule.check); return; }
+        if (x.status === 'na') { out.push('N/A ' + x.rule.check); return; }
+        var i = x.issue;
+        out.push('⬜ [' + SEV_LABEL[i.severity].toUpperCase() + '] ' + i.title);
+        i.entities.forEach(function (e) { out.push('    - ' + KIND_LABEL[e.kind] + ': ' + e.name + (e.note ? ': ' + e.note : '')); });
+        if (!i.entities.length) out.push('    - ' + i.why);
+        out.push('    Fix: ' + i.fix);
+      });
       out.push('');
     });
     return out.join('\n');
   }
-
   /* ---------- explorer ---------- */
   function listFor(kind) { var M = S.cur.model; return kind === 'tag' ? M.tags : kind === 'trigger' ? M.triggers : M.variables; }
   function viewExplorer() {
@@ -1422,7 +1642,7 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
       if (S.exp.type && e.typeLabel !== S.exp.type) return false;
       if (k === 'tag' && S.exp.status === 'active' && e.paused) return false;
       if (k === 'tag' && S.exp.status === 'paused' && !e.paused) return false;
-      if (S.exp.issuesOnly && !(A.byEntity[k + ':' + e.id] || []).some(function (i) { return i.severity !== 'info'; })) return false;
+      if (S.exp.issuesOnly && !(SC(A).byEntity[k + ':' + e.id] || []).some(function (i) { return i.severity !== 'info'; })) return false;
       if (q) {
         var hay = (e.name + ' ' + e.typeLabel + ' ' + JSON.stringify(e.flat || e.other || {}) + ' ' + (e.conditions ? e.conditions.map(function (c) { return c.text; }).join(' ') : '')).toLowerCase();
         if (hay.indexOf(q) < 0) return false;
@@ -1432,7 +1652,7 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
     var head = k === 'tag' ? ['Name', 'Type', 'Status', 'Fires on', 'Findings'] : k === 'trigger' ? ['Name', 'Type', 'Tags fired', 'Findings'] : ['Name', 'Type', 'Used by', 'Findings'];
     el.innerHTML = '<div class="muted small pad">' + plural(rows.length, KIND_LABEL[k].toLowerCase()) + '</div><table class="list"><thead><tr>' + head.map(function (h) { return '<th>' + h + '</th>'; }).join('') + '</tr></thead><tbody>' +
       rows.map(function (e) {
-        var iss = (A.byEntity[k + ':' + e.id] || []).filter(function (i) { return i.severity !== 'info'; }); if (!iss.length) iss = null; var w = worstSev(iss);
+        var iss = (SC(A).byEntity[k + ':' + e.id] || []).filter(function (i) { return i.severity !== 'info'; }); if (!iss.length) iss = null; var w = worstSev(iss);
         var f = iss ? '<span class="sev sev-' + w + ' compact" title="' + esc(iss.map(function (i) { return i.title; }).join('\n')) + '"><span class="glyph" aria-hidden="true">' + SEV_GLYPH[w] + '</span>' + iss.length + '</span>' : '<span class="muted">-</span>';
         var cells = k === 'tag' ? [e.typeLabel, e.paused ? '<span class="pill">Paused</span>' : 'Active', esc(e.firing.map(M.triggerName).join(', ') || '(none)')]
           : k === 'trigger' ? [e.typeLabel, '<span class="num">' + e.firesTags.length + '</span>']
@@ -1480,7 +1700,7 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
     var A = S.cur, M = A.model, sel = S.exp.sel;
     var e = sel && (sel.kind === 'tag' ? M.tagById[sel.id] : sel.kind === 'trigger' ? M.trigById[sel.id] : M.variables.filter(function (v) { return v.id === sel.id; })[0]);
     if (!e) { el.innerHTML = '<div class="empty-detail"><p class="b">Pick an item to troubleshoot it</p><p class="muted">You\'ll see what fires it, what it blocks, which variables it reads, its settings, and any findings.</p></div>'; return; }
-    var iss = A.byEntity[e.kind + ':' + e.id] || [];
+    var iss = SC(A).byEntity[e.kind + ':' + e.id] || [];
     var h = '<div class="dh"><div class="eyebrow">' + KIND_LABEL[e.kind] + ' · ' + esc(e.typeLabel) + '</div><h2>' + esc(e.name) + '</h2><div class="row gap wrap">' +
       (e.kind === 'tag' ? (e.paused ? '<span class="pill warn">Paused</span>' : '<span class="pill ok">Active</span>') : '') +
       (e.folder ? '<span class="pill">Folder: ' + esc(e.folder) + '</span>' : '') + '<span class="pill">ID ' + esc(e.id) + '</span></div></div>';
@@ -1573,7 +1793,7 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
     function yOf(i, count) { var off = (n - count) * RH / 2; return TOP + off + i * RH; }
     var edges = [], nodes = [];
     var bad = {};
-    A.issues.forEach(function (i) { if (i.severity === 'critical' || i.severity === 'high') i.entities.forEach(function (e) { bad[e.kind + ':' + e.id] = 1; }); });
+    SC(A).issues.forEach(function (i) { if (i.severity === 'critical' || i.severity === 'high') i.entities.forEach(function (e) { bad[e.kind + ':' + e.id] = 1; }); });
     tags.forEach(function (t) {
       var yt = yOf(tagIndex[t.id], tags.length) + BH / 2;
       t.firing.forEach(function (id) { var y = yOf(tIndex[id], trigIds.length) + BH / 2; edges.push({ a: 'r:' + id, b: 'g:' + t.id, x1: xT + CW, y1: y, x2: xG, y2: yt, cls: 'e-fire' }); });
@@ -1590,7 +1810,7 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
     });
     tags.forEach(function (t, i) {
       nodes.push(node('g:' + t.id, xG, yOf(i, tags.length), t.name, '', 'n-tag' + (t.paused ? ' paused' : '') + (bad['tag:' + t.id] ? ' bad' : ''), 'tag:' + t.id,
-        '<b>' + esc(t.name) + '</b><br>' + esc(t.typeLabel) + (t.paused ? '<br>Paused' : '') + ((A.byEntity['tag:' + t.id] || []).length ? '<br>' + plural(A.byEntity['tag:' + t.id].length, 'finding') : '')));
+        '<b>' + esc(t.name) + '</b><br>' + esc(t.typeLabel) + (t.paused ? '<br>Paused' : '') + ((SC(A).byEntity['tag:' + t.id] || []).length ? '<br>' + plural(SC(A).byEntity['tag:' + t.id].length, 'finding') : '')));
     });
     vars.forEach(function (nm, i) {
       var v = M.varByName[nm];
@@ -1629,7 +1849,8 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
         '<p class="muted small">Tip: in GTM, open Versions, select the earlier version, then use Admin > Export Container and pick that version. You can also drop both files at once from the start page.</p>' +
         (S.demo ? '<button class="btn" data-do="demo2">Load the demo comparison</button>' : '') + '</section>';
     }
-    var d = S.diff, O = S.prev.model.meta, N = S.cur.model.meta;
+    var d0 = S.diff, O = S.prev.model.meta, N = S.cur.model.meta;
+    var d = Object.assign({}, d0, { newIssues: d0.newIssues.filter(function (x) { return isOn(x.issue.rule); }), resolvedIssues: d0.resolvedIssues.filter(function (x) { return isOn(x.issue.rule); }) });
     function cnt(list, kind, getter) { return list.filter(function (x) { return (getter ? getter(x) : x).kind === kind; }).length; }
     var h = '<section class="card"><div class="card-h"><div><div class="eyebrow">Comparing</div><h2>v' + esc(O.versionId) + (O.versionName ? ' "' + esc(O.versionName) + '"' : '') + ' → v' + esc(N.versionId) + (N.versionName ? ' "' + esc(N.versionName) + '"' : '') + '</h2>' +
       '<div class="muted small">Older: ' + esc(O.fileName) + ' (exported ' + esc(O.exportTime) + ') · Newer: ' + esc(N.fileName) + ' (exported ' + esc(N.exportTime) + ')</div></div>' +
@@ -1639,7 +1860,7 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
     h += '<section class="tiles">' + ['tag', 'trigger', 'variable'].map(function (k) {
       return '<div class="tile"><div class="tl">' + KIND_LABEL[k] + 's</div><div class="deltas"><span class="d-add">+' + cnt(d.added, k) + ' added</span><span class="d-rem">−' + cnt(d.removed, k) + ' removed</span><span class="d-chg">~' + cnt(d.changed, k, function (c) { return c.after; }) + ' edited</span></div></div>';
     }).join('') +
-      '<div class="tile"><div class="tl">Health score</div><div class="tv">' + S.prev.score + ' → ' + S.cur.score + '</div><div class="muted">' + (S.cur.score >= S.prev.score ? '+' : '') + (S.cur.score - S.prev.score) + ' points</div></div></section>';
+      '<div class="tile"><div class="tl">Health score</div><div class="tv">' + SC(S.prev).score + ' → ' + SC(S.cur).score + '</div><div class="muted">' + (SC(S.cur).score >= SC(S.prev).score ? '+' : '') + (SC(S.cur).score - SC(S.prev).score) + ' points</div></div></section>';
     function issueLines(list, empty) {
       if (!list.length) return '<p class="muted small">' + empty + '</p>';
       return '<ul class="ents">' + list.map(function (x) { return '<li>' + sevBadge(x.issue.severity) + ' ' + esc(x.issue.title) + (x.entity ? ': ' + (x.entity.kind !== 'folder' ? '<b>' + esc(x.entity.name) + '</b>' : esc(x.entity.name)) : '') + '</li>'; }).join('') + '</ul>';
@@ -1659,7 +1880,8 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
     return h;
   }
   function diffText() {
-    var d = S.diff, O = S.prev.model.meta, N = S.cur.model.meta, out = [];
+    var d0 = S.diff, O = S.prev.model.meta, N = S.cur.model.meta, out = [];
+    var d = Object.assign({}, d0, { newIssues: d0.newIssues.filter(function (x) { return isOn(x.issue.rule); }), resolvedIssues: d0.resolvedIssues.filter(function (x) { return isOn(x.issue.rule); }) });
     out.push('GTM change log: ' + N.container.name + ' (' + N.container.publicId + ')');
     out.push('Version ' + O.versionId + (O.versionName ? ' "' + O.versionName + '"' : '') + ' to ' + N.versionId + (N.versionName ? ' "' + N.versionName + '"' : ''));
     out.push(''); out.push(d.summary); out.push('');
