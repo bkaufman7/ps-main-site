@@ -271,6 +271,9 @@ details.outscope summary { cursor: pointer; color: var(--ink-2); }
 #issueList { display: flex; flex-direction: column; gap: 8px; }
 @media (max-width: 640px) { .crow { grid-template-columns: 1fr; } .plats { justify-content: flex-start; } }
 
+.loaded-only { display: none; } body.loaded .loaded-only { display: inline-block; }
+.reportbar { background: var(--accent-wash); border-bottom: 1px solid var(--ring); font-size: 13px; }
+.reportbar .topin { padding: 7px 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 /* overlays */
 #tt { position: fixed; z-index: 60; background: var(--surface); color: var(--ink); border: 1px solid var(--ring-strong); border-radius: 8px; padding: 7px 10px; font-size: 12.5px; max-width: 340px; box-shadow: 0 6px 24px rgba(0,0,0,.14); pointer-events: none; }
 .toast { position: fixed; bottom: 18px; left: 50%; transform: translate(-50%, 20px); opacity: 0; background: var(--ink); color: var(--page); padding: 10px 16px; border-radius: 10px; z-index: 70; transition: .2s; max-width: 90vw; pointer-events: none; }
@@ -288,7 +291,8 @@ details.outscope summary { cursor: pointer; color: var(--ink-2); }
     <button class="logo" data-do="home" title="Back to the start page"><i>GTM</i>Container Audit</button>
     <div id="ctx"></div>
     <div class="hdr-actions">
-      <a class="btn small ghost" href="../../index.html#tools" title="Back to the Platform Solutions site">← Platform Solutions</a>
+      <a class="btn small ghost" href="https://hmi-platformsolutions.com/#tools" title="Back to the Platform Solutions site">← Platform Solutions</a>
+      <button class="btn small loaded-only" data-do="report" title="Save a standalone HTML file with this container, scope and view">⤓ Download report</button>
       <button class="btn small" data-do="home" title="Clear the loaded file and go back to the start page">⌂ Home</button>
       <label class="btn small" title="Load a different export">Load file<input type="file" accept=".json,application/json" multiple hidden></label>
       <button class="btn small ghost" id="themeBtn" title="Toggle light/dark">◐ Theme</button>
@@ -1142,6 +1146,12 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
 (function () {
   'use strict';
   var C = GTMCore;
+  var SRC = (function () {
+    var root = document.documentElement.cloneNode(true);
+    Array.prototype.forEach.call(root.querySelectorAll('#embedded-audit, .reportbar'), function (n) { n.remove(); });
+    root.removeAttribute('data-theme');
+    return '<!DOCTYPE html>\n' + root.outerHTML;
+  })();
   var S = {
     cur: null, prev: null, diff: null, pending: null, demo: false,
     tab: 'overview',
@@ -1243,7 +1253,7 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
     if (!isNaN(na) && !isNaN(nb) && na !== nb) return na < nb ? [a, b] : [b, a];
     return (a.exportTime || '') <= (b.exportTime || '') ? [a, b] : [b, a];
   }
-  function setVersions(a, b) {
+  function setVersions(a, b, quiet) {
     if (b) {
       var o = order(a, b);
       S.prev = C.analyze(o[0]); S.cur = C.analyze(o[1]);
@@ -1252,6 +1262,7 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
     S.exp.sel = null;
     document.body.classList.add('loaded');
     renderHeader();
+    if (quiet) return;
     go(b ? 'compare' : 'overview');
     toast(b ? 'Loaded 2 versions. Auditing v' + S.cur.model.meta.versionId + ' and comparing with v' + S.prev.model.meta.versionId + '.' : 'Loaded ' + a.container.name + ' v' + a.versionId + '.');
   }
@@ -1326,8 +1337,54 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
   }
   window.addEventListener('hashchange', function () { var h = location.hash.slice(1); if (h !== S.tab && TABS.indexOf(h) >= 0) { S.tab = h; render(); } });
 
+  function stamp(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  function downloadReport() {
+    if (!S.cur) return;
+    var metas = S.prev ? [S.prev.model.meta, S.cur.model.meta] : [S.cur.model.meta];
+    var now = new Date();
+    var payload = {
+      v: 1, savedAt: now.toISOString(), demo: !!S.demo, tab: S.tab, sel: S.exp.sel,
+      scope: { preset: S.scope.preset, plats: S.scope.plats, on: S.scope.on, custom: S.scope.custom },
+      files: metas.map(function (m) { return { name: m.fileName, json: m.raw }; })
+    };
+    var data = JSON.stringify(payload).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+    var html = SRC.replace('</head>', '<script id="embedded-audit" type="application/json">' + data + '<\/script>\n</head>');
+    var m = S.cur.model.meta;
+    var name = ('GTM-audit_' + (m.container.publicId || m.container.name) + '_v' + m.versionId + (S.prev ? '_vs_v' + S.prev.model.meta.versionId : '') + '_' + stamp(now) + '.html').replace(/[^\w.-]+/g, '-');
+    try {
+      var url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+      var link = document.createElement('a'); link.href = url; link.download = name;
+      document.body.appendChild(link); link.click(); link.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+      toast('Saved ' + name + '. It includes the container data, so share it like a client file.');
+    } catch (e) { toast('This browser blocked the download. Open the tool from its web address and try again.', true); }
+  }
+  function loadEmbedded() {
+    var el = document.getElementById('embedded-audit'); if (!el) return false;
+    try {
+      var p = JSON.parse(el.textContent);
+      if (p.scope) {
+        S.scope.preset = p.scope.preset || 'full';
+        PLAT_IDS.forEach(function (x) { S.scope.plats[x] = p.scope.plats && p.scope.plats[x] ? 1 : 0; });
+        S.scope.on = {}; Object.keys(p.scope.on || {}).forEach(function (id) { if (C.RULE_BY_ID[id]) S.scope.on[id] = 1; });
+        S.scope.custom = !!p.scope.custom; S.scope.ver++;
+      }
+      var metas = p.files.map(function (f) { return C.parseExport(JSON.stringify(f.json), f.name); });
+      if (metas.length === 2) setVersions(metas[0], metas[1], true); else setVersions(metas[0], null, true);
+      S.demo = !!p.demo;
+      S.report = { savedAt: p.savedAt };
+      var bar = document.createElement('div'); bar.className = 'reportbar';
+      bar.innerHTML = '<div class="topin"><b>Saved report</b><span>' + esc(metas[metas.length - 1].container.name) + ', saved ' + esc(new Date(p.savedAt).toLocaleString()) + '.</span><span class="muted">Snapshot of the export(s) at that time. Use Home to audit a different file.</span></div>';
+      document.querySelector('header.top').appendChild(bar);
+      if (p.sel) S.exp.sel = p.sel;
+      renderHeader();
+      go(TABS.indexOf(p.tab) >= 0 ? p.tab : 'overview');
+      return true;
+    } catch (e) { toast('This saved report could not be opened: ' + e.message, true); return false; }
+  }
   function goHome() {
-    S.cur = null; S.prev = null; S.diff = null; S.pending = null; S.demo = false; S.exp.sel = null;
+    S.cur = null; S.prev = null; S.diff = null; S.pending = null; S.demo = false; S.exp.sel = null; S.report = null;
+    var rb = document.querySelector('.reportbar'); if (rb) rb.remove();
     document.body.classList.remove('loaded');
     $('#modal').hidden = true;
     renderHeader();
@@ -1353,6 +1410,7 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
     if (!a) return;
     var d = a.getAttribute('data-do');
     if (d === 'home') goHome();
+    else if (d === 'report') downloadReport();
     else if (d === 'demo') loadDemo(false);
     else if (d === 'demo2') loadDemo(true);
     else if (d === 'swap') swapVersions();
@@ -1927,6 +1985,7 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
       '<li><b>Hygiene & cleanup:</b> paused tags, unused triggers and variables, default names, empty folders.</li>' +
       '<li><b>Security & performance:</b> http:// resources, document.write, eval(), Custom JavaScript variables with no return, Custom HTML on every page, third-party domains.</li></ul>' +
       '<p class="muted small">Findings come from fixed rules applied to the export. They show what the configuration says, not what fires on the live site, so confirm fixes in GTM Preview mode. The health score is a guide weighted by severity, not a grade.</p>' +
+      '<h3>Share what you see</h3><p><b>Download report</b> (top right) saves one .html file with the tool, the loaded export(s), your audit scope and the current tab. Anyone can double-click it to see the same view, no upload needed. It contains the container configuration, so share it the way you would any client file. <b>Copy link with this scope</b> shares only the checks, not the data.</p>' +
       '<h3>Privacy</h3><p>The file is read in your browser only. Nothing is uploaded, stored or sent anywhere, and refreshing the page clears it.</p>' +
       (S.cur ? '' : '<div class="row gap"><button class="btn" data-do="demo">Try a demo container</button></div>') + '</section>';
   }
@@ -1934,7 +1993,7 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
   /* ---------- boot ---------- */
   var h0 = location.hash.slice(1);
   if (TABS.indexOf(h0) >= 0) S.tab = h0;
-  render();
+  if (!loadEmbedded()) render();
 })();
 </script>
 </body>
