@@ -1,0 +1,1707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GTM Container Audit • Platform Solutions</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --surface-2: #f3f2ee; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,0.10); --ring-strong: rgba(11,11,11,0.18);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --good: #0ca30c; --good-ink: #006300; --warning: #fab219; --serious: #ec835a; --critical: #d03b3b;
+  --low: #898781; --info: #c3c2b7; --accent: #2a78d6; --accent-wash: rgba(42,120,214,0.10);
+  --add-wash: rgba(12,163,12,0.10); --rem-wash: rgba(208,59,59,0.10);
+  --font: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232322; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10); --ring-strong: rgba(255,255,255,0.18);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --good-ink: #0ca30c; --low: #898781; --info: #5d5c57; --accent: #3987e5; --accent-wash: rgba(57,135,229,0.16);
+    --add-wash: rgba(12,163,12,0.16); --rem-wash: rgba(208,59,59,0.18);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232322; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10); --ring-strong: rgba(255,255,255,0.18);
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  --good-ink: #0ca30c; --low: #898781; --info: #5d5c57; --accent: #3987e5; --accent-wash: rgba(57,135,229,0.16);
+  --add-wash: rgba(12,163,12,0.16); --rem-wash: rgba(208,59,59,0.18);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.45 var(--font); }
+button, input, select, textarea { font: inherit; color: inherit; }
+h1 { font-size: 28px; line-height: 1.2; margin: 0 0 8px; letter-spacing: -0.01em; }
+h2 { font-size: 16px; margin: 0 0 4px; }
+h3 { font-size: 13px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-2); }
+p { margin: 0 0 10px; }
+.muted { color: var(--muted); } .small { font-size: 12.5px; } .tiny { font-size: 11.5px; } .b { font-weight: 600; }
+.mono { font-family: var(--mono); font-size: 12.5px; word-break: break-all; }
+.num { font-variant-numeric: tabular-nums; text-align: right; }
+.row { display: flex; align-items: center; } .gap { gap: 8px; } .wrap { flex-wrap: wrap; } .center { justify-content: center; }
+.pad { padding: 8px 4px; }
+
+/* header */
+header.top { position: sticky; top: 0; z-index: 20; background: var(--page); border-bottom: 1px solid var(--ring); }
+.topin { max-width: 1320px; margin: 0 auto; padding: 10px 20px 0; }
+.brand { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.logo { font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.logo i { padding: 0 5px; height: 22px; border-radius: 6px; background: var(--accent); display: inline-grid; place-items: center; color: #fff; font-style: normal; font-size: 12px; }
+#ctx { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; flex: 1; min-width: 0; }
+.ctx-name { font-weight: 600; margin-left: 6px; }
+.hdr-actions { display: flex; gap: 6px; margin-left: auto; align-items: center; }
+.hdr-actions a.btn { text-decoration: none; }
+nav.tabs { display: none; gap: 2px; margin-top: 8px; overflow-x: auto; }
+body.loaded nav.tabs { display: flex; }
+nav.tabs button { background: none; border: 0; padding: 9px 12px; border-bottom: 2px solid transparent; cursor: pointer; color: var(--ink-2); white-space: nowrap; }
+nav.tabs button:hover { color: var(--ink); }
+nav.tabs button[aria-current="page"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+nav.tabs .badge { font-size: 11px; background: var(--surface-2); border-radius: 10px; padding: 1px 6px; margin-left: 4px; font-variant-numeric: tabular-nums; }
+nav.tabs .badge:empty { display: none; }
+
+main { max-width: 1320px; margin: 0 auto; padding: 18px 20px 60px; display: flex; flex-direction: column; gap: 16px; }
+.card { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 16px; min-width: 0; }
+.card-h { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.narrow { max-width: 820px; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } }
+.eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 2px; }
+.big { font-size: 18px; font-weight: 650; }
+
+/* buttons, inputs */
+.btn { border: 1px solid var(--ring-strong); background: var(--surface); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+.btn:hover { background: var(--surface-2); }
+.btn.primary { background: var(--accent); color: #fff; border-color: transparent; }
+.btn.ghost { border-color: transparent; background: transparent; color: var(--ink-2); }
+.btn.ghost:hover { background: var(--surface-2); color: var(--ink); }
+.btn.small { padding: 4px 9px; font-size: 12.5px; }
+input[type=search], select { border: 1px solid var(--ring-strong); background: var(--surface); border-radius: 8px; padding: 7px 10px; min-width: 0; }
+input[type=search] { width: 260px; max-width: 100%; }
+.check { display: inline-flex; gap: 6px; align-items: center; color: var(--ink-2); cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.pill { font-size: 12px; border: 1px solid var(--ring-strong); border-radius: 999px; padding: 1px 8px; color: var(--ink-2); white-space: nowrap; }
+.pill.alt { border-color: var(--accent); color: var(--accent); }
+.pill.warn { border-color: var(--warning); }
+.pill.ok { border-color: var(--good); }
+
+/* hero / drop */
+.hero { max-width: 760px; margin: 6vh auto 0; text-align: center; display: flex; flex-direction: column; gap: 14px; }
+.lead { color: var(--ink-2); font-size: 15.5px; }
+.drop { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 42px 20px; border: 2px dashed var(--axis); border-radius: 16px; background: var(--surface); cursor: pointer; color: var(--ink-2); transition: border-color .15s, background .15s; }
+.drop:hover { border-color: var(--accent); background: var(--accent-wash); }
+.drop-title { font-size: 17px; font-weight: 600; color: var(--ink); }
+.privacy { font-size: 13px; color: var(--ink-2); }
+.dropveil { position: fixed; inset: 0; background: color-mix(in srgb, var(--page) 80%, transparent); display: none; place-items: center; z-index: 50; pointer-events: none; }
+.dropveil div { border: 3px dashed var(--accent); border-radius: 20px; padding: 50px 70px; font-size: 20px; font-weight: 600; background: var(--surface); }
+body.dragging .dropveil { display: grid; }
+
+/* meta + tiles */
+.meta { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
+@media (max-width: 700px) { .meta { grid-template-columns: 1fr; } }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.tile { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+.tile.clickable { cursor: pointer; } .tile.clickable:hover { border-color: var(--ring-strong); }
+.tl { font-size: 12.5px; color: var(--ink-2); }
+.tv { font-size: 30px; font-weight: 650; line-height: 1.1; }
+.tv .of { font-size: 14px; color: var(--muted); font-weight: 400; margin-left: 2px; }
+.sevrow { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 6px; }
+.deltas { display: flex; flex-direction: column; gap: 2px; font-variant-numeric: tabular-nums; }
+.d-add { color: var(--good-ink); } .d-rem { color: var(--critical); } .d-chg { color: var(--ink-2); }
+
+/* severity + status */
+.sev { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--ink); white-space: nowrap; }
+.sev .glyph { width: 16px; height: 16px; border-radius: 4px; display: inline-grid; place-items: center; font-size: 9px; color: #fff; font-style: normal; font-weight: 700; }
+.sev-critical .glyph { background: var(--critical); } .sev-high .glyph { background: var(--serious); } .sev-medium .glyph { background: var(--warning); color: #0b0b0b; }
+.sev-low .glyph { background: var(--low); } .sev-info .glyph { background: var(--info); color: var(--ink); font-family: Georgia, serif; font-style: italic; font-size: 11px; }
+.sev.compact { font-variant-numeric: tabular-nums; }
+.sevfill-critical { background: var(--critical); } .sevfill-high { background: var(--serious); } .sevfill-medium { background: var(--warning); } .sevfill-low { background: var(--low); } .sevfill-info { background: var(--info); }
+.sevborder-critical { border-left: 4px solid var(--critical); } .sevborder-high { border-left: 4px solid var(--serious); } .sevborder-medium { border-left: 4px solid var(--warning); } .sevborder-low { border-left: 4px solid var(--low); } .sevborder-info { border-left: 4px solid var(--info); }
+.status { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; font-weight: 600; }
+.status .glyph { width: 18px; height: 18px; border-radius: 50%; display: inline-grid; place-items: center; color: #fff; font-size: 11px; }
+.st-good .glyph { background: var(--good); } .st-warning .glyph { background: var(--warning); color: #0b0b0b; } .st-critical .glyph { background: var(--critical); }
+
+/* charts */
+.hbar { display: flex; flex-direction: column; gap: 4px; }
+.hrow { display: grid; grid-template-columns: minmax(110px, 38%) 1fr 36px; align-items: center; gap: 10px; padding: 3px 4px; border-radius: 6px; }
+.hrow:hover { background: var(--surface-2); }
+.hrow.clickable { cursor: pointer; }
+.hl { font-size: 12.5px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.htrack { height: 14px; border-left: 1px solid var(--axis); }
+.hfill { height: 14px; background: var(--s1); border-radius: 0 4px 4px 0; }
+.hv { font-size: 12.5px; font-variant-numeric: tabular-nums; text-align: right; color: var(--ink); }
+.stack { display: flex; gap: 2px; height: 14px; }
+.stack .seg:last-child { border-radius: 0 4px 4px 0; }
+.segbar { display: flex; gap: 2px; height: 22px; margin: 6px 0 10px; }
+.segbar .seg:first-child { border-radius: 4px 0 0 4px; } .segbar .seg:last-child { border-radius: 0 4px 4px 0; }
+.cat-s1 { background: var(--s1); } .cat-s2 { background: var(--s2); } .cat-s3 { background: var(--s3); } .cat-s4 { background: var(--s4); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; font-size: 12.5px; color: var(--ink-2); }
+.legend.col { flex-direction: column; gap: 4px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.sw.paused { background: var(--surface-2); border: 1px dashed var(--muted); }
+.sw.bad { background: var(--surface); border: 2px solid var(--critical); }
+.ln { width: 18px; height: 0; border-top: 2px solid var(--s1); display: inline-block; }
+.ln.block { border-top: 2px dashed var(--critical); } .ln.var { border-top-color: var(--muted); }
+details.tbl { margin-top: 10px; } details.tbl summary { font-size: 12.5px; color: var(--muted); cursor: pointer; }
+
+/* tables */
+.tablewrap { overflow: auto; }
+.tablewrap.tall { max-height: 70vh; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+thead th { font-size: 12px; color: var(--ink-2); font-weight: 600; position: sticky; top: 0; background: var(--surface); z-index: 1; }
+table.inv td.mono { word-break: normal; overflow-wrap: anywhere; min-width: 150px; }
+table.inv th[colspan] { background: var(--surface-2); font-size: 12px; color: var(--ink-2); }
+table.kv th { width: 34%; color: var(--ink-2); font-weight: 500; word-break: break-word; }
+table.list tr.pick { cursor: pointer; }
+table.list tr.pick:hover td { background: var(--surface-2); }
+table.list tr.sel td { background: var(--accent-wash); }
+pre.code { margin: 0; padding: 10px; background: var(--surface-2); border-radius: 8px; font: 12px/1.5 var(--mono); white-space: pre-wrap; word-break: break-word; max-height: 420px; overflow: auto; }
+mark.vref { background: var(--accent-wash); color: var(--accent); border-radius: 3px; padding: 0 2px; }
+
+/* chips */
+.chip { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; border: 1px solid var(--ring-strong); background: var(--surface); border-radius: 7px; padding: 3px 8px; font-size: 12.5px; margin: 2px 4px 2px 0; text-align: left; }
+.chip.ent { cursor: pointer; } .chip.ent:hover { border-color: var(--accent); background: var(--accent-wash); }
+.chip .k { font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.chip.bad { border-color: var(--critical); color: var(--critical); }
+
+/* issues */
+.toolbar { display: flex; flex-direction: column; gap: 10px; }
+.toggle { border: 1px solid var(--ring-strong); background: var(--surface); border-radius: 8px; padding: 5px 10px; cursor: pointer; opacity: .55; }
+.toggle.on { opacity: 1; background: var(--surface-2); }
+details.issue { padding: 0; }
+details.issue > summary { list-style: none; display: grid; grid-template-columns: auto 1fr auto auto; gap: 12px; align-items: center; padding: 12px 16px; cursor: pointer; }
+details.issue > summary::-webkit-details-marker { display: none; }
+.it { font-weight: 600; }
+.count { font-size: 12.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.ib { padding: 0 16px 14px; }
+ul.ents { list-style: none; padding: 0; margin: 6px 0 10px; display: flex; flex-direction: column; gap: 2px; }
+.fix { background: var(--surface-2); border-radius: 8px; padding: 10px 12px; font-size: 13px; }
+ul.toplist { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+ul.toplist li { display: grid; grid-template-columns: 92px 1fr; gap: 8px; align-items: start; }
+@media (max-width: 640px) { details.issue > summary { grid-template-columns: auto 1fr; } }
+
+/* explorer */
+.explorer { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 16px; align-items: start; }
+@media (max-width: 980px) { .explorer { grid-template-columns: 1fr; } }
+.detailpane { position: sticky; top: 108px; max-height: calc(100vh - 124px); overflow: auto; }
+@media (max-width: 980px) { .detailpane { position: static; max-height: none; } }
+.seg-ctl { display: flex; background: var(--surface-2); border-radius: 9px; padding: 3px; gap: 3px; margin-bottom: 10px; }
+.seg-ctl button { flex: 1; border: 0; background: transparent; padding: 6px; border-radius: 7px; cursor: pointer; }
+.seg-ctl button.on { background: var(--surface); box-shadow: 0 0 0 1px var(--ring); font-weight: 600; }
+.filters { margin-bottom: 6px; }
+.empty-detail { text-align: center; padding: 50px 20px; }
+.dh { margin-bottom: 12px; } .dh h2 { font-size: 19px; margin: 2px 0 8px; word-break: break-word; }
+.dsec { border-top: 1px solid var(--grid); padding: 12px 0; }
+.mini { background: var(--surface-2); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; display: flex; flex-direction: column; gap: 3px; }
+.flow { display: grid; grid-template-columns: 1fr 20px 1fr 20px 1fr; gap: 8px; align-items: center; }
+.flowcol { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+.flowcol.center { align-items: stretch; }
+.node { border: 2px solid var(--accent); border-radius: 10px; padding: 10px; font-weight: 600; text-align: center; word-break: break-word; background: var(--accent-wash); margin-bottom: 6px; }
+.arrow { color: var(--muted); font-size: 18px; text-align: center; }
+@media (max-width: 640px) { .flow { grid-template-columns: 1fr; } .arrow { transform: rotate(90deg); } }
+.flowmeta { margin-top: 10px; font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+ul.conds { margin: 0 0 6px; padding-left: 18px; }
+details.raw summary { cursor: pointer; color: var(--ink-2); font-size: 13px; margin-bottom: 8px; }
+
+/* map */
+.mapwrap { overflow: auto; max-height: 78vh; border-top: 1px solid var(--grid); margin-top: 10px; }
+svg.map { display: block; min-width: 860px; font-family: var(--font); }
+svg.map .colh { font-size: 12px; font-weight: 600; fill: var(--ink-2); }
+svg.map .nd rect { fill: var(--surface); stroke: var(--ring-strong); }
+svg.map .nd text { font-size: 12px; fill: var(--ink); pointer-events: none; }
+svg.map .nd text.sub { font-size: 10.5px; fill: var(--muted); }
+svg.map .nd[data-go] { cursor: pointer; }
+svg.map .n-tag rect { stroke: var(--accent); }
+svg.map .n-tag.paused rect { stroke-dasharray: 4 3; stroke: var(--muted); fill: var(--surface-2); }
+svg.map .n-tag.paused text { fill: var(--muted); }
+svg.map .builtin rect { fill: var(--surface-2); }
+svg.map .missing rect, svg.map .bad rect { stroke: var(--critical); stroke-width: 2; }
+svg.map .nd:hover rect { fill: var(--accent-wash); }
+svg.map .ed { fill: none; stroke-width: 1.4; opacity: .45; }
+svg.map .e-fire { stroke: var(--s1); }
+svg.map .e-block { stroke: var(--critical); stroke-dasharray: 5 4; opacity: .8; }
+svg.map .e-var { stroke: var(--muted); opacity: .3; }
+svg.map.focus .nd { opacity: .25; } svg.map.focus .nd.hl { opacity: 1; }
+svg.map.focus .ed { opacity: .05; } svg.map.focus .ed.hl { opacity: 1; stroke-width: 2.2; }
+
+/* compare */
+.summary { background: var(--surface-2); border-radius: 10px; padding: 12px 14px; }
+.warnbox { border: 1px solid var(--warning); background: color-mix(in srgb, var(--warning) 12%, transparent); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
+details.chg { border-top: 1px solid var(--grid); padding: 8px 0; }
+details.chg summary { cursor: pointer; }
+table.diff td.was { background: var(--rem-wash); } table.diff td.now { background: var(--add-wash); }
+table.diff th { width: 22%; }
+.linediff .ld { display: block; }
+.linediff .lda { background: var(--add-wash); } .linediff .ldr { background: var(--rem-wash); } .linediff .ldc { color: var(--muted); }
+
+/* help */
+ol.steps { padding-left: 20px; display: flex; flex-direction: column; gap: 6px; margin: 8px 0 16px; }
+ul.plain { padding-left: 18px; display: flex; flex-direction: column; gap: 6px; margin: 8px 0 14px; }
+
+/* overlays */
+#tt { position: fixed; z-index: 60; background: var(--surface); color: var(--ink); border: 1px solid var(--ring-strong); border-radius: 8px; padding: 7px 10px; font-size: 12.5px; max-width: 340px; box-shadow: 0 6px 24px rgba(0,0,0,.14); pointer-events: none; }
+.toast { position: fixed; bottom: 18px; left: 50%; transform: translate(-50%, 20px); opacity: 0; background: var(--ink); color: var(--page); padding: 10px 16px; border-radius: 10px; z-index: 70; transition: .2s; max-width: 90vw; pointer-events: none; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast.bad { background: var(--critical); color: #fff; }
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: grid; place-items: center; z-index: 80; padding: 20px; }
+.modal[hidden] { display: none; }
+.modal-card { background: var(--surface); border-radius: 14px; padding: 20px; max-width: 620px; width: 100%; border: 1px solid var(--ring); }
+.copybox { width: 100%; height: 300px; font: 12px/1.5 var(--mono); margin: 8px 0 12px; background: var(--surface-2); border: 1px solid var(--ring); border-radius: 8px; padding: 8px; }
+</style>
+</head>
+<body>
+<header class="top"><div class="topin">
+  <div class="brand">
+    <div class="logo"><i>GTM</i>Container Audit</div>
+    <div id="ctx"></div>
+    <div class="hdr-actions">
+      <a class="btn small ghost" href="../../index.html#tools" title="Back to the Platform Solutions site">← Platform Solutions</a>
+      <label class="btn small" title="Load a different export">Load file<input type="file" accept=".json,application/json" multiple hidden></label>
+      <button class="btn small ghost" id="themeBtn" title="Toggle light/dark">◐ Theme</button>
+    </div>
+  </div>
+  <nav class="tabs" aria-label="Sections">
+    <button data-tab="overview">Overview</button>
+    <button data-tab="issues">Findings<span class="badge" id="tabIssuesCount"></span></button>
+    <button data-tab="explorer">Explorer</button>
+    <button data-tab="map">Firing map</button>
+    <button data-tab="compare">Compare versions<span class="badge" id="tabCmpCount"></span></button>
+    <button data-tab="help">How to export</button>
+  </nav>
+</div></header>
+<main id="main"></main>
+<div class="dropveil" aria-hidden="true"><div>Drop GTM export(s) to load</div></div>
+<div id="tt" hidden></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<div id="modal" class="modal" hidden><div class="modal-card" id="modalBody" role="dialog" aria-modal="true"></div></div>
+<script>/* ===== GTM audit core: parsing, rules, diff. No DOM access. ===== */
+var GTMCore = (function () {
+  'use strict';
+
+  var BUILTIN_TRIGGERS = {
+    '2147479553': 'All Pages',
+    '2147479572': 'Consent Initialization - All Pages',
+    '2147479573': 'Initialization - All Pages'
+  };
+  var ALL_PAGES = '2147479553', CONSENT_INIT = '2147479572';
+
+  var TAG_TYPES = {
+    html: 'Custom HTML', img: 'Custom Image', googtag: 'Google Tag', gaawc: 'GA4 Configuration (legacy)',
+    gaawe: 'GA4 Event', ua: 'Universal Analytics (sunset)', awct: 'Google Ads Conversion Tracking',
+    sp: 'Google Ads Remarketing', gclidw: 'Conversion Linker', flc: 'Floodlight Counter', fls: 'Floodlight Sales',
+    awud: 'Google Ads User-Provided Data Event', baut: 'Microsoft Advertising UET', bzi: 'LinkedIn Insight',
+    hjtc: 'Hotjar Tracking Code', pntr: 'Pinterest Tag', twitter_website_tag: 'Twitter/X Base Pixel',
+    cegg: 'Crazy Egg', qcm: 'Quantcast Measure', ga: 'Classic Google Analytics (sunset)', opt: 'Google Optimize (sunset)',
+    awcc: 'Google Ads Calls from Website Conversion', cloudflare: 'Cloudflare Zaraz'
+  };
+  var GOOGLE_TAGS = { googtag: 1, gaawc: 1, gaawe: 1, ua: 1, awct: 1, sp: 1, gclidw: 1, flc: 1, fls: 1, awud: 1, awcc: 1, ga: 1, opt: 1 };
+  var CONVERSION_TAGS = { awct: 1, fls: 1, flc: 1, awud: 1 };
+  var EC_OK_TAGS = { awct: 1, awud: 1, googtag: 1, gaawc: 1, flc: 1, fls: 1 };
+
+  var TRIGGER_TYPES = {
+    pageview: 'Page View', domReady: 'DOM Ready', windowLoaded: 'Window Loaded', customEvent: 'Custom Event',
+    click: 'Click - All Elements', linkClick: 'Click - Just Links', formSubmission: 'Form Submission',
+    historyChange: 'History Change', jsError: 'JavaScript Error', timer: 'Timer', scrollDepth: 'Scroll Depth',
+    youTubeVideo: 'YouTube Video', elementVisibility: 'Element Visibility', triggerGroup: 'Trigger Group',
+    init: 'Initialization', consentInit: 'Consent Initialization', always: 'Always'
+  };
+  var VAR_TYPES = {
+    v: 'Data Layer Variable', c: 'Constant', jsm: 'Custom JavaScript', j: 'JavaScript Variable', k: '1st-Party Cookie',
+    u: 'URL', e: 'Custom Event', d: 'DOM Element', f: 'HTTP Referrer', aev: 'Auto-Event Variable', smm: 'Lookup Table',
+    remm: 'RegEx Table', gas: 'Google Analytics Settings (UA, sunset)', gtes: 'Google Tag: Event Settings',
+    gtcs: 'Google Tag: Configuration Settings', ctv: 'Container Version Number', r: 'Random Number', dbg: 'Debug Mode',
+    vis: 'Element Visibility', uv: 'Undefined Value', awec: 'User-Provided Data', cid: 'Container ID', t: 'Environment Name'
+  };
+  var KNOWN_BUILTINS = ['Page URL', 'Page Hostname', 'Page Path', 'Referrer', 'Event', 'Click Element', 'Click Classes',
+    'Click ID', 'Click Target', 'Click URL', 'Click Text', 'Form Element', 'Form Classes', 'Form ID', 'Form Target',
+    'Form URL', 'Form Text', 'Error Message', 'Error URL', 'Error Line', 'Debug Mode', 'Container ID', 'Container Version',
+    'Random Number', 'HTML ID', 'Environment Name', 'New History Fragment', 'Old History Fragment', 'New History State',
+    'Old History State', 'History Source', 'Video Provider', 'Video Status', 'Video URL', 'Video Title', 'Video Duration',
+    'Video Current Time', 'Video Percent', 'Video Visible', 'Scroll Depth Threshold', 'Scroll Depth Units',
+    'Scroll Direction', 'Percent Visible', 'On-Screen Duration', 'Client Name', 'Event Name', 'Query String',
+    'Request Method', 'Request Path', 'Request Hostname', 'Request Port'];
+
+  var OPS = {
+    equals: 'equals', contains: 'contains', startsWith: 'starts with', endsWith: 'ends with', matchRegex: 'matches RegEx',
+    greater: 'greater than', greaterOrEquals: 'greater than or equal to', less: 'less than',
+    lessOrEquals: 'less than or equal to', cssSelector: 'matches CSS selector'
+  };
+
+  var SEVERITIES = ['critical', 'high', 'medium', 'low', 'info'];
+  var SEV_WEIGHT = { critical: 15, high: 8, medium: 3, low: 1, info: 0 };
+  var CATEGORIES = ['Tracking correctness', 'Consent & privacy', 'Hygiene & cleanup', 'Security & performance'];
+
+  var SKIP_KEYS = { name: 1, notes: 1, fingerprint: 1, path: 1, tagManagerUrl: 1, description: 1 };
+  var PII_RE = /e-?mail|phone|first[\s_.-]?name|last[\s_.-]?name|full[\s_.-]?name|street|address|zip|postal|\bdob\b|birth|\bssn\b/i;
+  var EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
+  var DEFAULT_NAME_RE = /^(untitled( (tag|trigger|variable))?|new (tag|trigger|variable)|(tag|trigger|variable)( \d+)?|custom html( \d+)?|custom image( \d+)?|google tag( \d+)?|ga4 event( \d+)?|page view( \d+)?|click( \d+)?|constant( \d+)?|copy of .*|.* copy( \d+)?|.* \(copy\))$/i;
+
+  /* ---------- helpers ---------- */
+  function str(v) { return v == null ? '' : String(v); }
+  function walkStrings(obj, fn) {
+    if (obj == null) return;
+    if (typeof obj === 'string') { fn(obj); return; }
+    if (Array.isArray(obj)) { obj.forEach(function (x) { walkStrings(x, fn); }); return; }
+    if (typeof obj === 'object') {
+      Object.keys(obj).forEach(function (k) { if (!SKIP_KEYS[k]) walkStrings(obj[k], fn); });
+    }
+  }
+  function varRefs(obj) {
+    var out = {};
+    walkStrings(obj, function (s) {
+      var re = /\{\{([^{}]+)\}\}/g, m;
+      while ((m = re.exec(s))) out[m[1].trim()] = 1;
+    });
+    return Object.keys(out);
+  }
+  function getParam(params, key) {
+    var p = (params || []).filter(function (x) { return x.key === key; })[0];
+    return p ? p : null;
+  }
+  function paramVal(params, key) { var p = getParam(params, key); return p && p.value != null ? String(p.value) : ''; }
+  function flatOne(p, path, out) {
+    var k = p.key != null ? (path ? path + '.' + p.key : p.key) : path;
+    if (p.type === 'list') {
+      var l = p.list || [];
+      if (!l.length) out[k || '(list)'] = '(empty list)';
+      l.forEach(function (x, i) { flatOne(x, (k || '') + '[' + (i + 1) + ']', out); });
+    } else if (p.type === 'map') {
+      (p.map || []).forEach(function (x) { flatOne(x, k, out); });
+    } else {
+      out[k || '(value)'] = p.value != null ? String(p.value) : '';
+    }
+  }
+  function flattenParams(params) { var out = {}; (params || []).forEach(function (p) { flatOne(p, '', out); }); return out; }
+  function uniq(a) { var s = {}; return a.filter(function (x) { if (s[x]) return false; s[x] = 1; return true; }); }
+  function domainsIn(text) {
+    var out = [], re = /https?:\/\/([a-z0-9.-]+\.[a-z]{2,})/gi, m;
+    while ((m = re.exec(text || ''))) out.push(m[1].toLowerCase());
+    var re2 = /(?:src|href)\s*=\s*["']\/\/([a-z0-9.-]+\.[a-z]{2,})/gi;
+    while ((m = re2.exec(text || ''))) out.push(m[1].toLowerCase());
+    return uniq(out);
+  }
+
+  /* ---------- parse ---------- */
+  function parseExport(text, fileName) {
+    var j;
+    try { j = JSON.parse(text); } catch (e) { throw new Error('"' + fileName + '" is not valid JSON (' + e.message + ').'); }
+    var cv = j && j.containerVersion ? j.containerVersion : (j && (j.tag || j.trigger || j.variable) ? j : null);
+    if (!cv) throw new Error('"' + fileName + '" does not look like a GTM container export (no "containerVersion" found).');
+    var c = cv.container || {};
+    return {
+      fileName: fileName,
+      exportTime: j.exportTime || '',
+      exportFormatVersion: j.exportFormatVersion,
+      container: { name: c.name || '(unnamed container)', publicId: c.publicId || '', containerId: cv.containerId || c.containerId || '', accountId: cv.accountId || c.accountId || '', usageContext: (c.usageContext || []).join(', ') },
+      versionId: str(cv.containerVersionId),
+      versionName: cv.name || '',
+      description: cv.description || '',
+      tags: cv.tag || [], triggers: cv.trigger || [], variables: cv.variable || [], folders: cv.folder || [],
+      builtIns: cv.builtInVariable || [], templates: cv.customTemplate || [], clients: cv.client || [],
+      raw: j
+    };
+  }
+
+  /* ---------- model ---------- */
+  function condText(c) {
+    var p = c.parameter || [];
+    var a0 = paramVal(p, 'arg0'), a1 = paramVal(p, 'arg1');
+    var neg = c.negate === true || paramVal(p, 'negate') === 'true';
+    var op = OPS[c.type] || c.type;
+    var ic = paramVal(p, 'ignore_case') === 'true' ? ' (ignore case)' : '';
+    return a0 + ' ' + (neg ? 'does not ' + op.replace(/^equals$/, 'equal').replace(/^matches/, 'match').replace(/^contains/, 'contain').replace(/^starts/, 'start').replace(/^ends/, 'end') : op) + ' ' + a1 + ic;
+  }
+
+  function buildModel(m) {
+    var templatesByType = {};
+    m.templates.forEach(function (t) {
+      templatesByType['cvt_' + m.container.containerId + '_' + t.templateId] = t;
+      templatesByType['cvt_' + t.templateId] = t;
+      if (t.galleryReference && t.galleryReference.galleryTemplateId) templatesByType['cvt_' + t.galleryReference.galleryTemplateId] = t;
+    });
+    function tagTypeLabel(type) {
+      if (TAG_TYPES[type]) return TAG_TYPES[type];
+      if (templatesByType[type]) return templatesByType[type].name + ' (template)';
+      if (/^cvt_/.test(type)) {
+        var hit = m.templates.filter(function (t) { return type.slice(-(String(t.templateId).length + 1)) === '_' + t.templateId; })[0];
+        if (hit) { templatesByType[type] = hit; return hit.name + ' (template)'; }
+        return 'Custom Template (' + type + ')';
+      }
+      return type;
+    }
+    var folders = {};
+    m.folders.forEach(function (f) { folders[str(f.folderId)] = f.name; });
+
+    var tags = m.tags.map(function (t) {
+      var cs = t.consentSettings || {};
+      var ctypes = cs.consentType && cs.consentType.list ? cs.consentType.list.map(function (x) { return x.value; }) : [];
+      return {
+        kind: 'tag', id: str(t.tagId), name: t.name, type: t.type, typeLabel: tagTypeLabel(t.type),
+        isGoogle: !!GOOGLE_TAGS[t.type], isTemplate: /^cvt_/.test(t.type), template: templatesByType[t.type] || null,
+        paused: !!t.paused, firing: (t.firingTriggerId || []).map(str), blocking: (t.blockingTriggerId || []).map(str),
+        params: t.parameter || [], flat: flattenParams(t.parameter), refs: varRefs(t),
+        folderId: t.parentFolderId ? str(t.parentFolderId) : '', folder: folders[str(t.parentFolderId)] || '',
+        consentStatus: cs.consentStatus || 'notSet', consentTypes: ctypes,
+        firingOption: t.tagFiringOption || 'oncePerEvent',
+        setup: (t.setupTag || []).map(function (s) { return s.tagName; }),
+        teardown: (t.teardownTag || []).map(function (s) { return s.tagName; }),
+        priority: t.priority && t.priority.value != null ? String(t.priority.value) : '',
+        schedule: (t.scheduleStartMs || t.scheduleEndMs) ? 'scheduled' : '',
+        notes: t.notes || '', raw: t
+      };
+    });
+    var triggers = m.triggers.map(function (t) {
+      var conds = [];
+      ['customEventFilter', 'filter', 'autoEventFilter'].forEach(function (k) {
+        (t[k] || []).forEach(function (c) { conds.push({ group: k, text: condText(c), raw: c }); });
+      });
+      var groupIds = [];
+      var tg = getParam(t.parameter, 'triggerIds');
+      if (tg && tg.list) groupIds = tg.list.map(function (x) { return str(x.value); });
+      var other = {};
+      Object.keys(t).forEach(function (k) {
+        if (/^(accountId|containerId|triggerId|name|type|fingerprint|parentFolderId|filter|customEventFilter|autoEventFilter|path|tagManagerUrl|workspaceId|notes|parameter)$/.test(k)) return;
+        var v = t[k];
+        if (v && typeof v === 'object' && !Array.isArray(v) && 'type' in v) flatOne(Object.assign({ key: k }, v), '', other);
+        else if (typeof v !== 'object') other[k] = str(v);
+      });
+      Object.assign(other, flattenParams((t.parameter || []).filter(function (p) { return p.key !== 'triggerIds'; })));
+      var ceName = '';
+      (t.customEventFilter || []).forEach(function (c) { var a = paramVal(c.parameter, 'arg0'); if (/_event/.test(a)) ceName = paramVal(c.parameter, 'arg1'); });
+      return {
+        kind: 'trigger', id: str(t.triggerId), name: t.name, type: t.type, typeLabel: TRIGGER_TYPES[t.type] || t.type,
+        conditions: conds, groupIds: groupIds, other: other, refs: varRefs(t), eventName: ceName,
+        folderId: t.parentFolderId ? str(t.parentFolderId) : '', folder: folders[str(t.parentFolderId)] || '',
+        notes: t.notes || '', raw: t
+      };
+    });
+    var variables = m.variables.map(function (v) {
+      return {
+        kind: 'variable', id: str(v.variableId), name: v.name, type: v.type, typeLabel: VAR_TYPES[v.type] || (/^cvt_/.test(v.type) ? tagTypeLabel(v.type) : v.type),
+        params: v.parameter || [], flat: flattenParams(v.parameter), refs: varRefs(v),
+        folderId: v.parentFolderId ? str(v.parentFolderId) : '', folder: folders[str(v.parentFolderId)] || '',
+        notes: v.notes || '', raw: v
+      };
+    });
+
+    var tagById = {}, trigById = {}, varByName = {}, tagByName = {};
+    tags.forEach(function (t) { tagById[t.id] = t; tagByName[t.name] = t; });
+    triggers.forEach(function (t) { trigById[t.id] = t; });
+    variables.forEach(function (v) { varByName[v.name] = v; });
+    var builtInNames = {};
+    m.builtIns.forEach(function (b) { builtInNames[b.name] = 1; });
+
+    // reverse references
+    tags.forEach(function (t) { t.usedAsSetupBy = []; t.usedAsCleanupBy = []; });
+    triggers.forEach(function (t) { t.firesTags = []; t.blocksTags = []; t.inGroups = []; });
+    variables.forEach(function (v) { v.usedBy = []; });
+    tags.forEach(function (t) {
+      t.firing.forEach(function (id) { if (trigById[id]) trigById[id].firesTags.push(t.id); });
+      t.blocking.forEach(function (id) { if (trigById[id]) trigById[id].blocksTags.push(t.id); });
+      t.setup.forEach(function (n) { if (tagByName[n]) tagByName[n].usedAsSetupBy.push(t.id); });
+      t.teardown.forEach(function (n) { if (tagByName[n]) tagByName[n].usedAsCleanupBy.push(t.id); });
+    });
+    triggers.forEach(function (t) { t.groupIds.forEach(function (id) { if (trigById[id]) trigById[id].inGroups.push(t.id); }); });
+    function addUse(list, owner) {
+      list.refs.forEach(function (r) { if (varByName[r] && !(owner.kind === 'variable' && owner.name === r)) varByName[r].usedBy.push({ kind: owner.kind, id: owner.id }); });
+    }
+    tags.forEach(function (t) { addUse(t, t); });
+    triggers.forEach(function (t) { addUse(t, t); });
+    variables.forEach(function (v) { addUse(v, v); });
+
+    function triggerName(id) {
+      if (BUILTIN_TRIGGERS[id]) return BUILTIN_TRIGGERS[id] + ' (built-in)';
+      if (trigById[id]) return trigById[id].name;
+      return 'Missing trigger (ID ' + id + ')';
+    }
+    function resolve(v) {
+      var mm = /^\{\{(.+)\}\}$/.exec(str(v).trim());
+      if (mm && varByName[mm[1]] && varByName[mm[1]].type === 'c') return paramVal(varByName[mm[1]].params, 'value');
+      return str(v);
+    }
+    return {
+      meta: m, tags: tags, triggers: triggers, variables: variables, folders: m.folders,
+      tagById: tagById, trigById: trigById, varByName: varByName, tagByName: tagByName, builtInNames: builtInNames,
+      triggerName: triggerName, resolve: resolve
+    };
+  }
+
+  /* ---------- rules ---------- */
+  function analyze(meta) {
+    var M = buildModel(meta);
+    var issues = [];
+    function ent(e, note) { return { kind: e.kind, id: e.id, name: e.name, note: note || '' }; }
+    function add(rule, severity, category, title, entities, why, fix) {
+      if (entities !== null && entities.length === 0) return;
+      issues.push({ rule: rule, severity: severity, category: category, title: title, entities: entities || [], containerLevel: entities === null, why: why, fix: fix });
+    }
+    var active = M.tags.filter(function (t) { return !t.paused; });
+    function isPageviewAll(id) {
+      if (id === ALL_PAGES) return true;
+      var t = M.trigById[id];
+      return !!(t && (t.type === 'pageview' || t.type === 'domReady' || t.type === 'windowLoaded') && t.conditions.length === 0);
+    }
+    var T = 'Tracking correctness', C = 'Consent & privacy', H = 'Hygiene & cleanup', S = 'Security & performance';
+
+    // --- broken trigger references
+    var broken = [];
+    M.tags.forEach(function (t) {
+      t.firing.concat(t.blocking).forEach(function (id) {
+        if (!BUILTIN_TRIGGERS[id] && !M.trigById[id]) broken.push(ent(t, 'references trigger ID ' + id + ', which is not in this container'));
+      });
+    });
+    add('broken-trigger-ref', 'critical', T, 'Tags point to triggers that no longer exist', broken,
+      'A tag that references a deleted trigger will not fire as expected, and GTM may block publishing.',
+      'In Tags, open each tag listed, go to Triggering, remove the missing trigger, and add the correct one.');
+
+    // --- unresolved variables
+    var unresolved = [], notEnabled = [];
+    function checkRefs(e) {
+      e.refs.forEach(function (r) {
+        if (M.varByName[r] || M.builtInNames[r] || r === '_event') return;
+        if (KNOWN_BUILTINS.indexOf(r) >= 0) notEnabled.push(ent(e, '{{' + r + '}} is a built-in variable that is not enabled'));
+        else unresolved.push(ent(e, 'uses {{' + r + '}}, which does not exist'));
+      });
+    }
+    M.tags.forEach(checkRefs); M.triggers.forEach(checkRefs); M.variables.forEach(checkRefs);
+    add('unresolved-variable', 'critical', T, 'References to variables that do not exist', unresolved,
+      'An unknown {{variable}} resolves to nothing, so the field is sent empty or the condition never matches.',
+      'Create the missing variable in Variables > User-Defined Variables > New, or correct the spelling in the field shown.');
+    add('builtin-not-enabled', 'high', T, 'Built-in variables used but not enabled', notEnabled,
+      'Built-in variables only work when enabled. Until then the reference returns nothing.',
+      'Go to Variables > Built-In Variables > Configure and tick each built-in listed.');
+
+    // --- setup / cleanup tags missing
+    var missSeq = [];
+    M.tags.forEach(function (t) {
+      t.setup.concat(t.teardown).forEach(function (n) { if (!M.tagByName[n]) missSeq.push(ent(t, 'tag sequencing references "' + n + '", which is not in this container')); });
+    });
+    add('missing-sequence-tag', 'critical', T, 'Tag sequencing points to missing tags', missSeq,
+      'The setup or cleanup tag cannot run, and with "don\'t fire if setup fails" ticked the main tag will not fire either.',
+      'Open the tag, go to Advanced Settings > Tag Sequencing, and pick an existing tag or remove the sequence.');
+
+    // --- trigger groups referencing missing triggers
+    var tgMiss = [];
+    M.triggers.forEach(function (t) { t.groupIds.forEach(function (id) { if (!M.trigById[id] && !BUILTIN_TRIGGERS[id]) tgMiss.push(ent(t, 'includes trigger ID ' + id + ', which is not in this container')); }); });
+    add('trigger-group-missing', 'critical', T, 'Trigger groups include missing triggers', tgMiss,
+      'A trigger group only fires when every trigger in it has fired. A missing member means the group never fires.',
+      'Open the trigger group in Triggers and replace or remove the missing trigger.');
+
+    // --- active tags with no firing triggers
+    var noTrig = active.filter(function (t) { return t.firing.length === 0 && t.usedAsSetupBy.length === 0 && t.usedAsCleanupBy.length === 0; });
+    add('no-firing-trigger', 'high', T, 'Active tags with no firing trigger', noTrig.map(function (t) { return ent(t, 'has no firing trigger and is not used in tag sequencing'); }),
+      'These tags never fire. Either tracking is missing or the tag is dead weight.',
+      'Add the intended firing trigger in the tag\'s Triggering section, or pause/delete the tag if it is no longer needed.');
+
+    // --- firing and blocking on the same trigger
+    var selfBlock = M.tags.filter(function (t) { return t.firing.some(function (id) { return t.blocking.indexOf(id) >= 0; }); });
+    add('blocked-by-own-trigger', 'high', T, 'Tags blocked by their own firing trigger', selfBlock.map(function (t) {
+      var both = t.firing.filter(function (id) { return t.blocking.indexOf(id) >= 0; }).map(M.triggerName);
+      return ent(t, 'fires and is blocked on: ' + both.join(', '));
+    }), 'Exceptions win over firing triggers, so the tag never fires on that trigger.',
+      'Open the tag, go to Triggering, and remove the trigger from Exceptions (or from Firing Triggers if the block is intended).');
+
+    // --- deprecated Universal Analytics
+    var ua = M.tags.filter(function (t) { return t.type === 'ua' || t.type === 'ga' || t.type === 'opt'; }).map(function (t) { return ent(t, t.typeLabel + (t.paused ? ' (paused)' : '')); })
+      .concat(M.variables.filter(function (v) { return v.type === 'gas'; }).map(function (v) { return ent(v, 'Google Analytics Settings variable for UA'); }));
+    add('deprecated-tags', 'high', T, 'Sunset Google products still in the container', ua,
+      'Universal Analytics stopped processing data in 2023-2024 and Google Optimize shut down in 2023. These tags send nothing useful and add page weight.',
+      'Confirm GA4 covers the same events, then delete these tags and the UA settings variable. Delete them in the same version so they can be restored from version history if needed.');
+
+    // --- GA4 / Google tag checks
+    var ga4NoId = [], ga4NoEvent = [], ga4Ids = {};
+    M.tags.forEach(function (t) {
+      if (t.type === 'googtag' || t.type === 'gaawc') {
+        var raw = paramVal(t.params, t.type === 'googtag' ? 'tagId' : 'measurementId');
+        if (!raw.trim()) ga4NoId.push(ent(t, 'no tag ID / measurement ID set'));
+        else if (!t.paused) { var id = M.resolve(raw); (ga4Ids[id] = ga4Ids[id] || []).push(t); }
+      }
+      if (t.type === 'gaawe') {
+        if (!paramVal(t.params, 'eventName').trim()) ga4NoEvent.push(ent(t, 'event name is empty'));
+      }
+    });
+    add('ga4-missing-id', 'high', T, 'Google tags with no tag ID', ga4NoId,
+      'Without a tag ID (G-, AW-, or GT- ID) the Google tag cannot load or send data.',
+      'Open the tag and enter the Tag ID (for GA4, the Measurement ID starting with G-).');
+    add('ga4-event-no-name', 'high', T, 'GA4 Event tags with an empty event name', ga4NoEvent,
+      'GA4 rejects events without a name, so nothing is recorded.',
+      'Open the tag and fill in Event Name (for example purchase, generate_lead).');
+    var dupGa4 = [];
+    Object.keys(ga4Ids).forEach(function (id) { if (ga4Ids[id].length > 1) ga4Ids[id].forEach(function (t) { dupGa4.push(ent(t, 'loads ' + id + ' (' + ga4Ids[id].length + ' active Google tags use this ID)')); }); });
+    add('duplicate-google-tag', 'medium', T, 'The same Google tag ID is loaded by more than one tag', dupGa4,
+      'Loading the same ID twice can double page views and sessions if both tags fire on the same page.',
+      'Keep one Google tag per ID on All Pages (or Initialization - All Pages). If the others fire on different pages on purpose, check they cannot overlap.');
+
+    // --- Google Ads
+    var adsMissing = [], linkerNeeded = false;
+    M.tags.forEach(function (t) {
+      if (t.type === 'awct') {
+        var miss = ['conversionId', 'conversionLabel'].filter(function (k) { return !paramVal(t.params, k).trim(); });
+        if (miss.length) adsMissing.push(ent(t, 'missing ' + miss.map(function (k) { return k === 'conversionId' ? 'Conversion ID' : 'Conversion Label'; }).join(' and ')));
+      }
+      if (!t.paused && (t.type === 'awct' || t.type === 'fls' || t.type === 'flc' || t.type === 'sp')) linkerNeeded = true;
+    });
+    add('ads-missing-id', 'high', T, 'Google Ads conversion tags missing an ID or label', adsMissing,
+      'Google Ads needs both the Conversion ID and the Conversion Label to attribute the conversion.',
+      'Copy both values from Google Ads > Goals > Conversions > (the action) > Tag setup > Use Google Tag Manager.');
+    var hasLinker = M.tags.some(function (t) { return t.type === 'gclidw' && !t.paused; });
+    var hasGoogleTag = M.tags.some(function (t) { return (t.type === 'googtag' || t.type === 'gaawc') && !t.paused; });
+    if (linkerNeeded && !hasLinker) {
+      add('no-conversion-linker', hasGoogleTag ? 'medium' : 'high', T, 'No active Conversion Linker tag', null,
+        'Google Ads and Floodlight tags rely on the Conversion Linker to store click IDs (gclid/dclid) in first-party cookies. Without it, conversions from ad clicks can go unattributed.' + (hasGoogleTag ? ' A Google tag is present and may handle this, but a Conversion Linker on All Pages is still the documented setup for GTM.' : ''),
+        'Add a new tag of type Conversion Linker, set Triggering to All Pages, and publish.');
+    }
+    var convAll = active.filter(function (t) { return t.type === 'awct' && t.firing.some(isPageviewAll); });
+    add('conversion-all-pages', 'medium', T, 'Conversion tags firing on every page', convAll.map(function (t) { return ent(t, 'fires on ' + t.firing.filter(isPageviewAll).map(M.triggerName).join(', ')); }),
+      'A purchase or lead conversion firing on every page view inflates conversions.',
+      'Change Triggering to a trigger that only fires on the confirmation page or conversion event.');
+    var unlimited = active.filter(function (t) { return CONVERSION_TAGS[t.type] && t.firingOption === 'unlimited'; });
+    add('conversion-unlimited', 'medium', T, 'Conversion tags allowed to fire unlimited times', unlimited.map(function (t) { return ent(t, 'Tag firing options: Unlimited'); }),
+      'With Unlimited, repeated dataLayer events or page refreshes can record the same conversion more than once.',
+      'Open the tag, go to Advanced Settings > Tag firing options, and choose Once per event (or Once per page for page-load conversions).');
+
+    // --- Floodlight
+    var flMissing = [], flsNoOrder = [];
+    M.tags.forEach(function (t) {
+      if (t.type === 'flc' || t.type === 'fls') {
+        var labels = { advertiserId: 'Advertiser ID', groupTag: 'Group Tag String', activityTag: 'Activity Tag String' };
+        var miss = Object.keys(labels).filter(function (k) { return !paramVal(t.params, k).trim(); });
+        if (miss.length) flMissing.push(ent(t, 'missing ' + miss.map(function (k) { return labels[k]; }).join(', ')));
+        if (t.type === 'fls' && !paramVal(t.params, 'orderId').trim()) flsNoOrder.push(ent(t, 'no Order ID set'));
+      }
+    });
+    add('floodlight-missing-fields', 'high', T, 'Floodlight tags missing required IDs', flMissing,
+      'Floodlight needs the Advertiser ID, Group Tag String (type) and Activity Tag String (cat) to match the activity in CM360.',
+      'Copy the values from CM360 > Floodlight > Activities > (the activity) > Tags, then paste them into the tag fields named.');
+    add('floodlight-no-order-id', 'medium', T, 'Floodlight Sales tags without an Order ID', flsNoOrder,
+      'Without an Order ID, CM360 cannot remove duplicate transactions, so refreshes of the confirmation page can count twice.',
+      'Open the tag and map Order ID to the transaction ID variable (for example a Data Layer Variable for ecommerce.transaction_id).');
+
+    // --- Custom event triggers with empty event name
+    var ceEmpty = M.triggers.filter(function (t) { return t.type === 'customEvent' && !t.eventName.trim(); });
+    add('custom-event-empty', 'high', T, 'Custom Event triggers with no event name', ceEmpty.map(function (t) { return ent(t, 'Event name is blank'); }),
+      'A Custom Event trigger with a blank event name will not match the intended dataLayer event.',
+      'Open the trigger and enter the exact dataLayer event name (case-sensitive) in Event name.');
+
+    // --- duplicates
+    var groups = {};
+    M.tags.forEach(function (t) {
+      if (t.paused) return;
+      var sig = t.type + '|' + JSON.stringify(Object.keys(t.flat).sort().map(function (k) { return [k, t.flat[k]]; }));
+      (groups[sig] = groups[sig] || []).push(t);
+    });
+    var dupSame = [], dupSimilar = [];
+    Object.keys(groups).forEach(function (k) {
+      var g = groups[k]; if (g.length < 2) return;
+      var overlap = g.some(function (a, i) { return g.some(function (b, j) { return j > i && a.firing.some(function (id) { return b.firing.indexOf(id) >= 0; }); }); });
+      var names = g.map(function (t) { return t.name; });
+      g.forEach(function (t) { (overlap ? dupSame : dupSimilar).push(ent(t, 'identical settings to: ' + names.filter(function (n) { return n !== t.name; }).join(', '))); });
+    });
+    add('duplicate-tags', 'high', T, 'Duplicate tags firing on the same trigger', dupSame,
+      'Two tags with identical settings on the same trigger send the same hit twice, which double counts events or conversions.',
+      'Compare the tags listed, keep one, and pause or delete the other.');
+    add('similar-tags', 'low', H, 'Tags with identical settings on different triggers', dupSimilar,
+      'Not a data problem, but these could be one tag with several firing triggers, which is easier to maintain.',
+      'Consider merging into one tag and adding both triggers under Triggering.');
+
+    // --- Consent
+    var cmpRe = /consent|cookiebot|onetrust|usercentrics|didomi|osano|termly|cookieyes|iubenda|trustarc|complianz|cookie ?pro|cmp/i;
+    var consentSignals = M.tags.some(function (t) {
+      return !t.paused && (t.firing.indexOf(CONSENT_INIT) >= 0 ||
+        t.firing.some(function (id) { return M.trigById[id] && M.trigById[id].type === 'consentInit'; }) ||
+        (t.template && cmpRe.test(t.template.name)) ||
+        (t.type === 'html' && /consent['"]\s*,\s*['"](default|update)/.test(paramVal(t.params, 'html'))));
+    });
+    if (!consentSignals) add('no-consent-default', 'medium', C, 'No Consent Mode default or CMP tag found', null,
+      'No tag fires on Consent Initialization and no consent management platform (CMP) template or gtag(\'consent\', \'default\') call was found. Consent may be set on the site itself, outside GTM, so confirm before acting.',
+      'Confirm with the client how consent is collected. If it should be in GTM, add the CMP\'s template (or a Consent Mode defaults tag) on the Consent Initialization - All Pages trigger.');
+    var noConsent = active.filter(function (t) { return !t.isGoogle && t.type !== 'gclidw' && t.consentStatus === 'notSet' && !(t.template && cmpRe.test(t.template.name)) && !/consent/i.test(t.name); });
+    add('consent-not-set', 'medium', C, 'Non-Google tags with no consent setting', noConsent.map(function (t) { return ent(t, t.typeLabel + ': Consent Settings = Not set'); }),
+      'Google tags check consent on their own. Other vendors\' tags fire regardless of the user\'s choice unless consent is required in the tag or blocked by a trigger.',
+      'Open each tag, go to Advanced Settings > Consent Settings, choose "Require additional consent for tag to fire", and add the consent type (for example ad_storage). Or add the CMP\'s blocking trigger as an exception.');
+    var needNoType = M.tags.filter(function (t) { return t.consentStatus === 'needed' && t.consentTypes.length === 0; });
+    add('consent-needed-no-types', 'medium', C, 'Tags require consent but list no consent type', needNoType.map(function (t) { return ent(t, 'Consent required with an empty list'); }),
+      'With no consent type listed, the requirement does nothing.',
+      'Open the tag, go to Advanced Settings > Consent Settings, and add the consent types it needs.');
+    var piiLit = [], piiVar = [];
+    M.tags.forEach(function (t) {
+      Object.keys(t.flat).forEach(function (k) { if (EMAIL_RE.test(t.flat[k]) && !/^(html|javascript)$/.test(k)) piiLit.push(ent(t, 'field "' + k + '" contains an email address')); });
+      if (t.type === 'html' && EMAIL_RE.test(paramVal(t.params, 'html').replace(/\{\{[^}]+\}\}/g, ''))) piiLit.push(ent(t, 'HTML contains an email address'));
+      if (EC_OK_TAGS[t.type]) return;
+      var bad = t.refs.filter(function (r) { return PII_RE.test(r) && !(M.varByName[r] && M.varByName[r].type === 'awec'); });
+      if (bad.length) piiVar.push(ent(t, 'sends ' + bad.map(function (r) { return '{{' + r + '}}'; }).join(', ')));
+    });
+    add('pii-literal', 'high', C, 'Hard-coded email addresses in tag settings', piiLit,
+      'Sending personal data such as email addresses to ad or analytics platforms can break platform policies and privacy law.',
+      'Remove the email address from the field, or confirm it is a fixed business address and not user data.');
+    add('pii-variable', 'medium', C, 'Possible personal data sent to tags', piiVar,
+      'Variables named like email, phone, name or address are passed into these tags. GA4 and most ad platforms prohibit raw PII.',
+      'Confirm the value is hashed (or not personal data). Use the vendor\'s enhanced-matching feature instead of passing raw values in URLs or event parameters.');
+
+    // --- Hygiene
+    add('paused-tags', 'low', H, 'Paused tags', M.tags.filter(function (t) { return t.paused; }).map(function (t) { return ent(t, t.typeLabel); }),
+      'Paused tags are kept in the container but never fire. Old ones make troubleshooting harder.',
+      'Confirm each is still needed. Delete the ones that are not (version history keeps a copy).');
+    var unusedTrig = M.triggers.filter(function (t) { return t.firesTags.length === 0 && t.blocksTags.length === 0 && t.inGroups.length === 0; });
+    add('unused-triggers', 'low', H, 'Triggers not used by any tag', unusedTrig.map(function (t) { return ent(t, t.typeLabel); }),
+      'Unused triggers add clutter. Some auto-event triggers (clicks, scroll, visibility) still add listeners to the page.',
+      'Delete the triggers listed in Triggers, or attach them to the tag they were built for.');
+    var unusedVars = M.variables.filter(function (v) { return v.usedBy.length === 0; });
+    add('unused-variables', 'low', H, 'Variables not referenced anywhere', unusedVars.map(function (v) { return ent(v, v.typeLabel); }),
+      'Unused variables add clutter. Custom JavaScript variables can still run when other tags evaluate variables.',
+      'Delete the variables listed in Variables > User-Defined Variables.');
+    var dn = [].concat(M.tags, M.triggers, M.variables).filter(function (e) { return DEFAULT_NAME_RE.test((e.name || '').trim()); });
+    add('default-names', 'low', H, 'Default or unclear names', dn.map(function (e) { return ent(e, e.kind); }),
+      'Names like "Untitled Tag" or "Copy of ..." make it hard to know what fires where.',
+      'Rename using your naming convention, for example "GA4 Event - purchase" or "CE - purchase".');
+    var bothAll = active.filter(function (t) { return t.firing.indexOf(ALL_PAGES) >= 0 && t.firing.length > 1; });
+    add('all-pages-plus', 'low', H, 'Tags on All Pages plus other triggers', bothAll.map(function (t) { return ent(t, 'also fires on ' + t.firing.filter(function (id) { return id !== ALL_PAGES; }).map(M.triggerName).join(', ')); }),
+      'All Pages already covers every page view. Extra page view triggers can make the tag fire twice on those pages.',
+      'Check whether the extra triggers are needed (non-page view events are fine).');
+    if (M.folders.length) {
+      var usedFolders = {};
+      [].concat(M.tags, M.triggers, M.variables).forEach(function (e) { if (e.folderId) usedFolders[e.folderId] = 1; });
+      add('empty-folders', 'info', H, 'Empty folders', M.folders.filter(function (f) { return !usedFolders[str(f.folderId)]; }).map(function (f) { return { kind: 'folder', id: str(f.folderId), name: f.name, note: 'no items' }; }),
+        'Empty folders are harmless but add clutter.', 'Delete them from Folders.');
+      var unf = [].concat(M.tags, M.triggers, M.variables).filter(function (e) { return !e.folderId; });
+      add('unfoldered', 'info', H, 'Items not in a folder', unf.map(function (e) { return ent(e, e.kind); }),
+        'The container uses folders, but these items are outside them.', 'Move them into the right folder (Folders > select items > Move).');
+    }
+
+    // --- Security & performance
+    var docWrite = [], evalUse = [], httpSrc = [], htmlAll = [], domains = {};
+    M.tags.forEach(function (t) {
+      var html = t.type === 'html' ? paramVal(t.params, 'html') : '';
+      var src = html + ' ' + (t.type === 'img' ? paramVal(t.params, 'url') : '');
+      domainsIn(src).forEach(function (d) { (domains[d] = domains[d] || []).push(t.name); });
+      if (t.type !== 'html') return;
+      if (/document\.write\s*\(/.test(html) || paramVal(t.params, 'supportDocumentWrite') === 'true') docWrite.push(ent(t, 'uses document.write'));
+      if (/\beval\s*\(|new Function\s*\(/.test(html)) evalUse.push(ent(t, 'uses eval() or new Function()'));
+      if (/(src|href)\s*=\s*["']http:\/\//i.test(html)) httpSrc.push(ent(t, 'loads a resource over http://'));
+      if (!t.paused && t.firing.some(isPageviewAll)) htmlAll.push(ent(t, 'Custom HTML on every page'));
+    });
+    M.tags.forEach(function (t) { if (t.type === 'img' && /^http:\/\//i.test(paramVal(t.params, 'url'))) httpSrc.push(ent(t, 'image URL uses http://')); });
+    add('http-resource', 'high', S, 'Resources loaded over insecure http://', httpSrc,
+      'Browsers block or warn on http:// resources on https pages (mixed content), so the tag may fail silently.',
+      'Change the URL to https:// (confirm the vendor supports it) in the tag\'s HTML or Image URL field.');
+    add('document-write', 'medium', S, 'Custom HTML using document.write', docWrite,
+      'document.write is slow and can break the page when run after load. Most modern vendors no longer need it.',
+      'Ask the vendor for an async snippet or a Community Template. Then untick "Support document.write" in the tag.');
+    add('eval', 'medium', S, 'Custom HTML using eval()', evalUse,
+      'eval() runs arbitrary strings as code. That is a security risk and is often blocked by Content Security Policy.',
+      'Rewrite the snippet without eval(), or ask the vendor for a version that does not use it.');
+    var jsNoReturn = M.variables.filter(function (v) { return v.type === 'jsm' && !/\breturn\b/.test(paramVal(v.params, 'javascript')); });
+    add('jsm-no-return', 'high', S, 'Custom JavaScript variables with no return', jsNoReturn.map(function (v) { return ent(v, 'function never returns a value'); }),
+      'A Custom JavaScript variable must return a value. Without one it is always undefined.',
+      'Open the variable and add a return statement inside the function.');
+    add('html-all-pages', 'info', S, 'Custom HTML tags that load on every page', htmlAll,
+      'Each one adds script to every page. Fine when needed, but these are the first to review for page speed.',
+      'Check each is still needed on every page, or replace it with a Community Template where one exists.');
+    var allPageTags = active.filter(function (t) { return t.firing.some(isPageviewAll); });
+    if (allPageTags.length > 15) add('many-all-pages', 'low', S, allPageTags.length + ' active tags fire on every page', allPageTags.map(function (t) { return ent(t, t.typeLabel); }),
+      'A large number of page-load tags slows the page and the GTM container.', 'Review whether each tag needs to load on every page.');
+    var domList = Object.keys(domains).sort();
+    if (domList.length) add('third-party-domains', 'info', S, domList.length + ' third-party domain' + (domList.length > 1 ? 's' : '') + ' loaded by Custom HTML / Image tags', null,
+      'Inventory of outside domains these tags call: ' + domList.map(function (d) { return d + ' (' + uniq(domains[d]).join(', ') + ')'; }).join('; ') + '.',
+      'Check each vendor is approved and still under contract.');
+
+    // annotate + score
+    issues.forEach(function (i, n) { i.key = i.rule; i.n = n; });
+    issues.sort(function (a, b) { return SEVERITIES.indexOf(a.severity) - SEVERITIES.indexOf(b.severity) || CATEGORIES.indexOf(a.category) - CATEGORIES.indexOf(b.category); });
+    var penalty = 0;
+    issues.forEach(function (i) { var n = Math.max(1, i.entities.length); penalty += SEV_WEIGHT[i.severity] * (1 + Math.min(n - 1, 4) * 0.25); });
+    var score = Math.round(100 * Math.exp(-penalty / 90));
+
+    var byEntity = {};
+    issues.forEach(function (i) { i.entities.forEach(function (e) { var k = e.kind + ':' + e.id; (byEntity[k] = byEntity[k] || []).push(i); }); });
+
+    var inventory = { googleIds: {}, adsIds: {}, floodlight: {}, domains: domains };
+    M.tags.forEach(function (t) {
+      if (t.type === 'googtag' || t.type === 'gaawc') { var id = M.resolve(paramVal(t.params, t.type === 'googtag' ? 'tagId' : 'measurementId')); if (id) (inventory.googleIds[id] = inventory.googleIds[id] || []).push(t.name); }
+      if (t.type === 'gaawe') { var mid = M.resolve(paramVal(t.params, 'measurementIdOverride') || paramVal(t.params, 'measurementId')); if (mid) (inventory.googleIds[mid] = inventory.googleIds[mid] || []).push(t.name); }
+      if (t.type === 'awct' || t.type === 'sp') { var a = M.resolve(paramVal(t.params, 'conversionId')); if (a) (inventory.adsIds[a] = inventory.adsIds[a] || []).push(t.name); }
+      if (t.type === 'flc' || t.type === 'fls') { var f = M.resolve(paramVal(t.params, 'advertiserId')); if (f) (inventory.floodlight[f] = inventory.floodlight[f] || []).push(t.name); }
+    });
+
+    return { model: M, issues: issues, score: score, byEntity: byEntity, inventory: inventory };
+  }
+
+  /* ---------- diff ---------- */
+  function fieldsOf(e, M) {
+    var f = { Name: e.name, Type: e.typeLabel };
+    if (e.kind === 'tag') {
+      f.Status = e.paused ? 'Paused' : 'Active';
+      f['Firing triggers'] = e.firing.map(M.triggerName).sort().join(', ');
+      f['Exceptions'] = e.blocking.map(M.triggerName).sort().join(', ');
+      f['Consent settings'] = ({ notSet: 'Not set', notNeeded: 'No additional consent required', needed: 'Require additional consent' }[e.consentStatus] || e.consentStatus) + (e.consentTypes.length ? ' (' + e.consentTypes.join(', ') + ')' : '');
+      f['Tag firing option'] = ({ oncePerEvent: 'Once per event', oncePerLoad: 'Once per page', unlimited: 'Unlimited' }[e.firingOption] || e.firingOption);
+      f['Setup tag'] = e.setup.join(', ');
+      f['Cleanup tag'] = e.teardown.join(', ');
+      f['Priority'] = e.priority;
+      Object.keys(e.flat).forEach(function (k) { f['Setting: ' + k] = e.flat[k]; });
+    } else if (e.kind === 'trigger') {
+      f.Conditions = e.conditions.map(function (c) { return c.text; }).join('\n');
+      f['Group members'] = e.groupIds.map(M.triggerName).join(', ');
+      Object.keys(e.other).forEach(function (k) { f['Setting: ' + k] = e.other[k]; });
+    } else {
+      Object.keys(e.flat).forEach(function (k) { f['Setting: ' + k] = e.flat[k]; });
+    }
+    f.Folder = e.folder;
+    f.Notes = e.notes;
+    Object.keys(f).forEach(function (k) { if (f[k] === '' || f[k] == null) delete f[k]; });
+    return f;
+  }
+  function lineDiff(a, b) {
+    var A = a.split('\n'), B = b.split('\n');
+    if (A.length * B.length > 250000) return null;
+    var n = A.length, m = B.length, dp = [];
+    for (var i = 0; i <= n; i++) { dp.push(new Array(m + 1).fill(0)); }
+    for (i = n - 1; i >= 0; i--) for (var j = m - 1; j >= 0; j--) dp[i][j] = A[i] === B[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    var out = []; i = 0; j = 0;
+    while (i < n && j < m) {
+      if (A[i] === B[j]) { out.push([' ', A[i]]); i++; j++; }
+      else if (dp[i + 1][j] >= dp[i][j + 1]) { out.push(['-', A[i]]); i++; }
+      else { out.push(['+', B[j]]); j++; }
+    }
+    while (i < n) out.push(['-', A[i++]]);
+    while (j < m) out.push(['+', B[j++]]);
+    return out;
+  }
+  function diffVersions(oldA, newA) {
+    var O = oldA.model, N = newA.model;
+    var result = { added: [], removed: [], changed: [], sameContainer: O.meta.container.publicId === N.meta.container.publicId };
+    ['tags', 'triggers', 'variables'].forEach(function (kind) {
+      var oById = {}, nById = {};
+      O[kind].forEach(function (e) { oById[e.id] = e; });
+      N[kind].forEach(function (e) { nById[e.id] = e; });
+      var oLeft = O[kind].filter(function (e) { return !nById[e.id] || nById[e.id].type !== e.type; });
+      var nLeft = N[kind].filter(function (e) { return !oById[e.id] || oById[e.id].type !== e.type; });
+      var pairs = [];
+      N[kind].forEach(function (e) { if (oById[e.id] && oById[e.id].type === e.type) pairs.push([oById[e.id], e]); });
+      // fallback match by name + type (different container or re-created items)
+      var oByName = {}; oLeft.forEach(function (e) { oByName[e.type + '|' + e.name] = e; });
+      nLeft = nLeft.filter(function (e) { var o = oByName[e.type + '|' + e.name]; if (o) { pairs.push([o, e]); delete oByName[e.type + '|' + e.name]; return false; } return true; });
+      oLeft = Object.keys(oByName).map(function (k) { return oByName[k]; });
+      nLeft.forEach(function (e) { result.added.push(e); });
+      oLeft.forEach(function (e) { result.removed.push(e); });
+      pairs.forEach(function (p) {
+        var fo = fieldsOf(p[0], O), fn = fieldsOf(p[1], N);
+        var keys = uniq(Object.keys(fo).concat(Object.keys(fn)));
+        var changes = [];
+        keys.forEach(function (k) {
+          var a = fo[k] == null ? '' : fo[k], b = fn[k] == null ? '' : fn[k];
+          if (a !== b) changes.push({ field: k, from: a, to: b, lines: (a.indexOf('\n') >= 0 || b.indexOf('\n') >= 0) ? lineDiff(a, b) : null });
+        });
+        if (changes.length) result.changed.push({ before: p[0], after: p[1], changes: changes });
+      });
+    });
+    // issue delta
+    function keys(a) { var s = {}; a.issues.forEach(function (i) { if (i.entities.length) i.entities.forEach(function (e) { s[i.rule + '|' + e.kind + '|' + e.name] = { issue: i, entity: e }; }); else s[i.rule + '|-'] = { issue: i, entity: null }; }); return s; }
+    var ko = keys(oldA), kn = keys(newA);
+    result.newIssues = Object.keys(kn).filter(function (k) { return !ko[k]; }).map(function (k) { return kn[k]; });
+    result.resolvedIssues = Object.keys(ko).filter(function (k) { return !kn[k]; }).map(function (k) { return ko[k]; });
+    result.summary = summarize(result, O, N);
+    return result;
+  }
+  function plural(n, w) { return n + ' ' + w + (n === 1 ? '' : 's'); }
+  function summarize(r, O, N) {
+    var parts = [];
+    function byKind(list, verb) {
+      ['tag', 'trigger', 'variable'].forEach(function (k) {
+        var l = list.filter(function (e) { return e.kind === k; });
+        if (l.length) parts.push(verb + ' ' + plural(l.length, k) + ' (' + l.slice(0, 4).map(function (e) { return e.name; }).join(', ') + (l.length > 4 ? ', +' + (l.length - 4) + ' more' : '') + ').');
+      });
+    }
+    byKind(r.added, 'Added');
+    byKind(r.removed, 'Removed');
+    ['tag', 'trigger', 'variable'].forEach(function (k) {
+      var l = r.changed.filter(function (c) { return c.after.kind === k; });
+      if (!l.length) return;
+      var desc = l.slice(0, 4).map(function (c) {
+        var f = c.changes.map(function (x) {
+          if (x.field === 'Status') return x.to === 'Paused' ? 'paused' : 'unpaused';
+          if (x.field === 'Name') return 'renamed from "' + x.from + '"';
+          return x.field.replace(/^Setting: /, '') + ' changed';
+        });
+        return '"' + c.after.name + '" (' + uniq(f).slice(0, 3).join('; ') + (f.length > 3 ? '; +' + (f.length - 3) + ' more' : '') + ')';
+      });
+      parts.push('Edited ' + plural(l.length, k) + ': ' + desc.join(', ') + (l.length > 4 ? ', +' + (l.length - 4) + ' more' : '') + '.');
+    });
+    if (!parts.length) parts.push('No differences in tags, triggers or variables.');
+    return 'v' + O.meta.versionId + ' to v' + N.meta.versionId + ': ' + parts.join(' ');
+  }
+
+  return {
+    parseExport: parseExport, analyze: analyze, diffVersions: diffVersions,
+    SEVERITIES: SEVERITIES, CATEGORIES: CATEGORIES, BUILTIN_TRIGGERS: BUILTIN_TRIGGERS, ALL_PAGES: ALL_PAGES
+  };
+})();
+if (typeof module !== 'undefined') module.exports = GTMCore;
+</script>
+<script>/* ===== Fictional demo container (two versions) for trying the tool ===== */
+var GTMDemo = (function () {
+  'use strict';
+  function P(key, value, type) { return { type: type || 'template', key: key, value: String(value) }; }
+  function B(key, v) { return P(key, v ? 'true' : 'false', 'boolean'); }
+  function cond(type, a0, a1, negate) {
+    var p = [P('arg0', a0), P('arg1', a1)];
+    if (negate) p.push(B('negate', true));
+    return { type: type, parameter: p };
+  }
+  function evRow(name, value) { return { type: 'map', map: [P('name', name), P('value', value)] }; }
+  function base(id) { return { accountId: '6000000001', containerId: '90000001', fingerprint: String(1730000000000 + id) }; }
+  function tag(id, name, type, params, firing, extra) {
+    return Object.assign(base(id), { tagId: String(id), name: name, type: type, parameter: params, firingTriggerId: firing.map(String), tagFiringOption: 'oncePerEvent' }, extra || {});
+  }
+  function trig(id, name, type, extra) { return Object.assign(base(id), { triggerId: String(id), name: name, type: type }, extra || {}); }
+  function v(id, name, type, params, extra) { return Object.assign(base(id), { variableId: String(id), name: name, type: type, parameter: params }, extra || {}); }
+  function ce(name) { return [cond('equals', '{{_event}}', name)]; }
+  var notSet = { consentStatus: 'notSet' };
+
+  function v1() {
+    var variables = [
+      v(101, 'Const - GA4 Measurement ID', 'c', [P('value', 'G-DEMO12345')], { parentFolderId: '1' }),
+      v(102, 'DLV - ecommerce.transaction_id', 'v', [P('name', 'ecommerce.transaction_id'), P('dataLayerVersion', '2', 'integer')]),
+      v(103, 'DLV - ecommerce.value', 'v', [P('name', 'ecommerce.value'), P('dataLayerVersion', '2', 'integer')]),
+      v(104, 'DLV - user.email', 'v', [P('name', 'user.email'), P('dataLayerVersion', '2', 'integer')]),
+      v(105, 'CJS - Page Category', 'jsm', [P('javascript', 'function() {\n  var p = location.pathname.split("/")[1];\n  p || "home";\n}')]),
+      v(106, 'Lookup - Environment', 'smm', [P('input', '{{Page Hostname}}'), { type: 'list', key: 'map', list: [{ type: 'map', map: [P('key', 'www.demo-outdoor.example'), P('value', 'prod')] }] }]),
+      v(107, 'UA Settings (legacy)', 'gas', [P('trackingId', 'UA-000000-1')]),
+      v(108, 'Const - Floodlight Advertiser', 'c', [P('value', '1234567')], { parentFolderId: '2' })
+    ];
+    var triggers = [
+      trig(10, 'Pageview - Order Confirmation', 'pageview', { filter: [cond('contains', '{{Page Path}}', '/order/confirmation')] }),
+      trig(11, 'CE - purchase', 'customEvent', { customEventFilter: ce('purchase') }),
+      trig(12, 'Click - Outbound Links', 'linkClick', { filter: [cond('contains', '{{Click URL}}', 'demo-outdoor.example', true)], waitForTags: P('waitForTags', 'false', 'boolean'), checkValidation: P('checkValidation', 'false', 'boolean') }),
+      trig(13, 'CE - add_to_cart', 'customEvent', { customEventFilter: ce('') }),
+      trig(14, 'Pageview - Staging Hosts', 'pageview', { filter: [cond('contains', '{{Page Hostname}}', 'staging.')] }),
+      trig(15, 'Timer - 30s', 'timer', { interval: P('interval', '30000'), limit: P('limit', '1') }),
+      trig(16, 'Form - Newsletter', 'formSubmission', { filter: [cond('equals', '{{Form Name}}', 'newsletter')] })
+    ];
+    var tags = [
+      tag(1, 'Google Tag - GA4', 'googtag', [P('tagId', '{{Const - GA4 Measurement ID}}')], ['2147479553'], { parentFolderId: '1' }),
+      tag(2, 'GA4 Event - purchase', 'gaawe', [P('eventName', 'purchase'), P('measurementIdOverride', '{{Const - GA4 Measurement ID}}'),
+        { type: 'list', key: 'eventSettingsTable', list: [evRow('transaction_id', '{{DLV - ecommerce.transaction_id}}'), evRow('value', '{{DLV - ecommerce.value}}')] }], ['11'], { parentFolderId: '1' }),
+      tag(3, 'GA4 Event - purchase (copy)', 'gaawe', [P('eventName', 'purchase'), P('measurementIdOverride', '{{Const - GA4 Measurement ID}}'),
+        { type: 'list', key: 'eventSettingsTable', list: [evRow('transaction_id', '{{DLV - ecommerce.transaction_id}}'), evRow('value', '{{DLV - ecommerce.value}}')] }], ['11'], { parentFolderId: '1' }),
+      tag(4, 'GA4 Event - add_to_cart', 'gaawe', [P('eventName', 'add_to_cart'), P('measurementIdOverride', '{{Const - GA4 Measurement ID}}')], ['13'], { parentFolderId: '1' }),
+      tag(5, 'Google Ads - Purchase Conversion', 'awct', [P('conversionId', '999999999'), P('conversionLabel', 'AbCdEfGhIj'), P('conversionValue', '{{DLV - ecommerce.value}}'), P('orderId', '{{DLV - ecommerce.transaction_id}}')], ['2147479553'], { tagFiringOption: 'unlimited', parentFolderId: '2' }),
+      tag(6, 'Floodlight - Sales - Purchase', 'fls', [P('advertiserId', '{{Const - Floodlight Advertiser}}'), P('groupTag', 'sales0'), P('activityTag', 'purch0'), P('countingMethod', 'TRANSACTIONS'), P('revenue', '{{DLV - ecommerce.value}}')], ['10'], { parentFolderId: '2' }),
+      tag(7, 'Floodlight - Counter - Homepage', 'flc', [P('advertiserId', '{{Const - Floodlight Advertiser}}'), P('groupTag', 'count0'), P('activityTag', ''), P('countingMethod', 'STANDARD')], ['2147479553'], { parentFolderId: '2' }),
+      tag(8, 'cHTML - Meta Pixel', 'html', [P('html', '<script>\n!function(f,b,e,v,n,t,s){/* base code */}(window,document,"script","https://connect.facebook.net/en_US/fbevents.js");\nfbq("init", "000000000000000");\nfbq("track", "PageView", {em: "{{DLV - user.email}}"});\n<\/script>'), B('supportDocumentWrite', false)], ['2147479553'], Object.assign({ consentSettings: notSet, parentFolderId: '2' })),
+      tag(9, 'cHTML - Legacy Survey', 'html', [P('html', '<script src="http://survey.vendor-demo.example/s.js"><\/script>\n<script>document.write("<div id=\'survey\'></div>");<\/script>'), B('supportDocumentWrite', true)], ['2147479553'], { consentSettings: notSet }),
+      tag(20, 'UA - Pageview (legacy)', 'ua', [P('trackType', 'TRACK_PAGEVIEW'), P('gaSettings', '{{UA Settings (legacy)}}')], ['2147479553'], { paused: true }),
+      tag(21, 'Custom Image - Affiliate Pixel', 'img', [P('url', 'https://track.affiliate-demo.example/conv?oid={{DLV - ecommerce.transaction_id}}&email={{DLV - user.email}}'), B('useCacheBuster', true)], ['10'], { consentSettings: notSet, parentFolderId: '2' }),
+      tag(22, 'LinkedIn Insight', 'bzi', [P('partnerId', '000000')], [], { consentSettings: notSet, parentFolderId: '2' }),
+      tag(23, 'Untitled Tag', 'html', [P('html', '<script>console.log("outbound");<\/script>')], ['12'], { blockingTriggerId: ['12'], consentSettings: notSet })
+    ];
+    return {
+      exportFormatVersion: 2, exportTime: '2026-11-20 14:02:11',
+      containerVersion: {
+        path: 'accounts/6000000001/containers/90000001/versions/41', accountId: '6000000001', containerId: '90000001', containerVersionId: '41',
+        name: 'Q4 promo tags', description: 'Fictional demo data',
+        container: { path: 'accounts/6000000001/containers/90000001', accountId: '6000000001', containerId: '90000001', name: 'Demo Outdoor Co (fictional)', publicId: 'GTM-DEMO000', usageContext: ['WEB'] },
+        tag: tags, trigger: triggers, variable: variables,
+        folder: [{ folderId: '1', name: 'GA4' }, { folderId: '2', name: 'Media Pixels' }, { folderId: '3', name: 'Archive' }],
+        builtInVariable: ['Page URL', 'Page Hostname', 'Page Path', 'Referrer', 'Event', 'Click URL', 'Click Classes'].map(function (n) { return { accountId: '6000000001', containerId: '90000001', type: n.replace(/ /g, '_').toUpperCase(), name: n }; })
+      }
+    };
+  }
+  function v2() {
+    var j = JSON.parse(JSON.stringify(v1()));
+    var cv = j.containerVersion;
+    cv.containerVersionId = '42'; cv.name = 'Fix duplicates + consent'; cv.path = cv.path.replace(/41$/, '42');
+    j.exportTime = '2026-11-23 10:15:40';
+    cv.tag = cv.tag.filter(function (t) { return t.tagId !== '3'; });
+    cv.tag.forEach(function (t) {
+      if (t.tagId === '2') t.parameter[2].list.push(evRow('currency', '{{DLV - ecommerce.currency}}'));
+      if (t.tagId === '5') { t.firingTriggerId = ['10']; t.tagFiringOption = 'oncePerEvent'; }
+      if (t.tagId === '8') { t.parameter[0].value = t.parameter[0].value.replace(', {em: "{{DLV - user.email}}"}', ''); t.consentSettings = { consentStatus: 'needed', consentType: { type: 'list', list: [P('', 'ad_storage')] } }; }
+      if (t.tagId === '9') t.paused = true;
+    });
+    cv.tag.push(tag(24, 'Conversion Linker', 'gclidw', [B('enableCrossDomain', false)], ['2147479553'], { parentFolderId: '2' }));
+    cv.tag.push(tag(25, 'cHTML - Consent Mode Defaults', 'html', [P('html', "<script>\nwindow.dataLayer = window.dataLayer || [];\nfunction gtag(){dataLayer.push(arguments);}\ngtag('consent', 'default', {ad_storage: 'denied', analytics_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied'});\n<\/script>")], ['2147479572']));
+    cv.variable.push(v(109, 'DLV - ecommerce.currency', 'v', [P('name', 'ecommerce.currency'), P('dataLayerVersion', '2', 'integer')]));
+    cv.trigger.forEach(function (t) { if (t.triggerId === '13') t.customEventFilter = ce('add_to_cart'); });
+    return j;
+  }
+  return {
+    v1: function () { return JSON.stringify(v1(), null, 2); },
+    v2: function () { return JSON.stringify(v2(), null, 2); }
+  };
+})();
+if (typeof module !== 'undefined') module.exports = GTMDemo;
+</script>
+<script>/* ===== GTM Container Audit: UI ===== */
+(function () {
+  'use strict';
+  var C = GTMCore;
+  var S = {
+    cur: null, prev: null, diff: null, pending: null, demo: false,
+    tab: 'overview',
+    exp: { kind: 'tag', q: '', type: '', status: '', issuesOnly: false, sel: null },
+    iss: { sev: { critical: 1, high: 1, medium: 1, low: 1, info: 1 }, cat: '', q: '' },
+    map: { q: '', vars: true }
+  };
+  var TABS = ['overview', 'issues', 'explorer', 'map', 'compare', 'help'];
+  var SEV_LABEL = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low', info: 'Info' };
+  var SEV_GLYPH = { critical: '■', high: '▲', medium: '◆', low: '●', info: 'i' };
+  var KIND_LABEL = { tag: 'Tag', trigger: 'Trigger', variable: 'Variable', folder: 'Folder' };
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var main = $('#main');
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function plural(n, w, p) { return n + ' ' + (n === 1 ? w : (p || w + 's')); }
+  function sevBadge(s, extra) { return '<span class="sev sev-' + s + '"><span class="glyph" aria-hidden="true">' + SEV_GLYPH[s] + '</span>' + SEV_LABEL[s] + (extra != null ? ' <b>' + extra + '</b>' : '') + '</span>'; }
+  function findings(i) { return i.severity === 'info' ? 1 : Math.max(1, i.entities.length); }
+  function worstSev(list) { var w = null; (list || []).forEach(function (i) { if (w === null || C.SEVERITIES.indexOf(i.severity) < C.SEVERITIES.indexOf(w)) w = i.severity; }); return w; }
+
+  /* ---------- theme ---------- */
+  try { var th = localStorage.getItem('gtm-audit-theme'); if (th) document.documentElement.setAttribute('data-theme', th); } catch (e) { }
+  $('#themeBtn').addEventListener('click', function () {
+    var cur = document.documentElement.getAttribute('data-theme');
+    var dark = cur ? cur === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    var next = dark ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    try { localStorage.setItem('gtm-audit-theme', next); } catch (e) { }
+  });
+
+  /* ---------- loading ---------- */
+  function readFiles(files) {
+    var list = Array.prototype.slice.call(files || []).filter(function (f) { return /json$/i.test(f.name) || f.type === 'application/json' || f.type === ''; });
+    if (!list.length) { toast('Drop a .json file exported from GTM.', true); return; }
+    if (list.length > 2) { toast('Load one file to audit or two versions to compare. Using the first two.', true); list = list.slice(0, 2); }
+    Promise.all(list.map(function (f) { return f.text().then(function (t) { return C.parseExport(t, f.name); }); }))
+      .then(function (metas) {
+        S.demo = false;
+        if (metas.length === 2) setVersions(metas[0], metas[1]);
+        else if (S.cur) { S.pending = metas[0]; showChoice(); }
+        else setVersions(metas[0]);
+      })
+      .catch(function (e) { toast(e.message, true); });
+  }
+  function order(a, b) {
+    var na = Number(a.versionId), nb = Number(b.versionId);
+    if (!isNaN(na) && !isNaN(nb) && na !== nb) return na < nb ? [a, b] : [b, a];
+    return (a.exportTime || '') <= (b.exportTime || '') ? [a, b] : [b, a];
+  }
+  function setVersions(a, b) {
+    if (b) {
+      var o = order(a, b);
+      S.prev = C.analyze(o[0]); S.cur = C.analyze(o[1]);
+      S.diff = C.diffVersions(S.prev, S.cur);
+    } else { S.cur = C.analyze(a); S.prev = null; S.diff = null; }
+    S.exp.sel = null;
+    document.body.classList.add('loaded');
+    renderHeader();
+    go(b ? 'compare' : 'overview');
+    toast(b ? 'Loaded 2 versions. Auditing v' + S.cur.model.meta.versionId + ' and comparing with v' + S.prev.model.meta.versionId + '.' : 'Loaded ' + a.container.name + ' v' + a.versionId + '.');
+  }
+  function swapVersions() {
+    var p = S.prev, c = S.cur; S.cur = p; S.prev = c; S.diff = C.diffVersions(S.prev, S.cur); S.exp.sel = null; renderHeader(); render();
+  }
+  function showChoice() {
+    var m = S.pending;
+    $('#modalBody').innerHTML = '<h3>What should this file do?</h3><p><b>' + esc(m.fileName) + '</b>: ' + esc(m.container.name) + ' (' + esc(m.container.publicId) + ') version ' + esc(m.versionId) + '</p>' +
+      '<div class="row gap"><button class="btn primary" data-act="cmp">Compare with current (v' + esc(S.cur.model.meta.versionId) + ')</button><button class="btn" data-act="replace">Replace current</button><button class="btn ghost" data-act="cancel">Cancel</button></div>';
+    $('#modal').hidden = false;
+  }
+  $('#modal').addEventListener('click', function (e) {
+    var a = e.target.closest('[data-act]'); if (!a && e.target.id !== 'modal') return;
+    var act = a ? a.getAttribute('data-act') : 'cancel';
+    $('#modal').hidden = true;
+    if (act === 'cmp') setVersions(S.cur.model.meta, S.pending);
+    else if (act === 'replace') setVersions(S.pending);
+    S.pending = null;
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') $('#modal').hidden = true; });
+
+  var dragDepth = 0;
+  window.addEventListener('dragenter', function (e) { if (e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types, 'Files') >= 0) { dragDepth++; document.body.classList.add('dragging'); } });
+  window.addEventListener('dragleave', function () { dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) document.body.classList.remove('dragging'); });
+  window.addEventListener('dragover', function (e) { e.preventDefault(); });
+  window.addEventListener('drop', function (e) { e.preventDefault(); dragDepth = 0; document.body.classList.remove('dragging'); if (e.dataTransfer && e.dataTransfer.files.length) readFiles(e.dataTransfer.files); });
+  document.addEventListener('change', function (e) { if (e.target.matches('input[type=file]')) { readFiles(e.target.files); e.target.value = ''; } });
+
+  function loadDemo(two) {
+    var a = C.parseExport(GTMDemo.v2(), 'demo-v42.json');
+    if (two) setVersions(C.parseExport(GTMDemo.v1(), 'demo-v41.json'), a); else setVersions(a);
+    S.demo = true; renderHeader();
+  }
+
+  /* ---------- toast / tooltip ---------- */
+  var toastTimer;
+  function toast(msg, bad) {
+    var t = $('#toast'); t.textContent = msg; t.className = 'toast show' + (bad ? ' bad' : '');
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.className = 'toast'; }, bad ? 7000 : 3500);
+  }
+  var tt = $('#tt');
+  document.addEventListener('mouseover', function (e) {
+    var el = e.target.closest('[data-tip]'); if (!el) { tt.hidden = true; return; }
+    tt.innerHTML = el.getAttribute('data-tip'); tt.hidden = false;
+  });
+  document.addEventListener('mousemove', function (e) {
+    if (tt.hidden) return;
+    var x = e.clientX + 14, y = e.clientY + 14, w = tt.offsetWidth, h = tt.offsetHeight;
+    if (x + w > innerWidth - 8) x = e.clientX - w - 14;
+    if (y + h > innerHeight - 8) y = e.clientY - h - 14;
+    tt.style.left = x + 'px'; tt.style.top = y + 'px';
+  });
+
+  /* ---------- copy ---------- */
+  function copyText(text) {
+    var done = function () { toast('Copied to clipboard.'); };
+    var fallback = function () {
+      $('#modalBody').innerHTML = '<h3>Copy this text</h3><p class="muted">Your browser blocked automatic copying. Select all (Ctrl/Cmd+A) and copy.</p><textarea class="copybox" readonly>' + esc(text) + '</textarea><div class="row gap"><button class="btn" data-act="cancel">Close</button></div>';
+      $('#modal').hidden = false; var ta = $('.copybox'); ta.focus(); ta.select();
+    };
+    try { navigator.clipboard.writeText(text).then(done, fallback); } catch (e) { fallback(); }
+  }
+
+  /* ---------- routing ---------- */
+  function go(tab) {
+    if (TABS.indexOf(tab) < 0) tab = 'overview';
+    S.tab = tab;
+    if (location.hash !== '#' + tab) { try { history.replaceState(null, '', '#' + tab); } catch (e) { location.hash = tab; } }
+    render();
+    window.scrollTo(0, 0);
+  }
+  window.addEventListener('hashchange', function () { var h = location.hash.slice(1); if (h !== S.tab && TABS.indexOf(h) >= 0) { S.tab = h; render(); } });
+
+  function goEntity(kind, id) {
+    if (kind === 'folder') return;
+    S.exp.kind = kind; S.exp.sel = { kind: kind, id: id };
+    S.exp.q = ''; S.exp.type = ''; S.exp.status = ''; S.exp.issuesOnly = false;
+    go('explorer');
+    var d = $('#detail'); if (d && innerWidth < 980) d.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  document.addEventListener('click', function (e) {
+    var g = e.target.closest('[data-go]');
+    if (g) { var p = g.getAttribute('data-go').split(':'); goEntity(p[0], p.slice(1).join(':')); return; }
+    var t = e.target.closest('[data-tab]');
+    if (t) { go(t.getAttribute('data-tab')); return; }
+    var a = e.target.closest('[data-do]');
+    if (!a) return;
+    var d = a.getAttribute('data-do');
+    if (d === 'demo') loadDemo(false);
+    else if (d === 'demo2') loadDemo(true);
+    else if (d === 'swap') swapVersions();
+    else if (d === 'copy-issues') copyText(issuesText());
+    else if (d === 'copy-diff') copyText(diffText());
+    else if (d === 'copy-summary') copyText(S.diff.summary);
+    else if (d === 'clear-cmp') { S.prev = null; S.diff = null; renderHeader(); render(); }
+    else if (d === 'sev') { var s = a.getAttribute('data-sev'); S.iss.sev[s] = S.iss.sev[s] ? 0 : 1; render(); }
+    else if (d === 'kind') { S.exp.kind = a.getAttribute('data-kind'); S.exp.type = ''; S.exp.status = ''; render(); }
+    else if (d === 'pick') { S.exp.sel = { kind: a.getAttribute('data-kind'), id: a.getAttribute('data-id') }; renderExplorerDetail(); markSelected(); var dd = $('#detail'); if (dd && innerWidth < 980) dd.scrollIntoView({ behavior: 'smooth' }); }
+  });
+  document.addEventListener('input', function (e) {
+    var k = e.target.getAttribute('data-bind'); if (!k) return;
+    var v = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    var parts = k.split('.'); S[parts[0]][parts[1]] = v;
+    if (parts[0] === 'exp') { renderExplorerList(); }
+    else if (parts[0] === 'iss') { renderIssueList(); }
+    else if (parts[0] === 'map') { renderMapSvg(); }
+  });
+
+  /* ---------- header ---------- */
+  function renderHeader() {
+    var h = $('#ctx');
+    if (!S.cur) { h.innerHTML = ''; return; }
+    var m = S.cur.model.meta;
+    h.innerHTML = '<span class="ctx-name">' + esc(m.container.name) + '</span><span class="pill">' + esc(m.container.publicId || 'no public ID') + '</span><span class="pill">v' + esc(m.versionId) + (m.versionName ? ': ' + esc(m.versionName) : '') + '</span>' +
+      (S.prev ? '<span class="pill alt">comparing with v' + esc(S.prev.model.meta.versionId) + '</span>' : '') + (S.demo ? '<span class="pill warn">Demo data (fictional)</span>' : '');
+    var n = S.cur.issues.filter(function (i) { return i.severity !== 'info'; }).reduce(function (s, i) { return s + findings(i); }, 0);
+    $('#tabIssuesCount').textContent = n;
+    $('#tabCmpCount').textContent = S.diff ? (S.diff.added.length + S.diff.removed.length + S.diff.changed.length) : '';
+  }
+
+  /* ---------- render dispatcher ---------- */
+  function render() {
+    Array.prototype.forEach.call(document.querySelectorAll('nav.tabs [data-tab]'), function (b) { b.setAttribute('aria-current', b.getAttribute('data-tab') === S.tab ? 'page' : 'false'); });
+    if (!S.cur && S.tab !== 'help') { main.innerHTML = viewEmpty(); return; }
+    var v = { overview: viewOverview, issues: viewIssues, explorer: viewExplorer, map: viewMap, compare: viewCompare, help: viewHelp }[S.tab];
+    main.innerHTML = v();
+    if (S.tab === 'explorer') { renderExplorerList(); renderExplorerDetail(); }
+    if (S.tab === 'issues') renderIssueList();
+    if (S.tab === 'map') renderMapSvg();
+  }
+
+  function dropZone(title, sub, two) {
+    return '<label class="drop"><input type="file" accept=".json,application/json"' + (two ? ' multiple' : '') + ' hidden>' +
+      '<svg width="40" height="40" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3l5 5h-3v6h-4V8H7l5-5zm-7 14h14v3H5v-3z"/></svg>' +
+      '<span class="drop-title">' + title + '</span><span class="muted">' + sub + '</span></label>';
+  }
+  function viewEmpty() {
+    return '<section class="hero">' +
+      '<h1>Drop a GTM container export to audit it</h1>' +
+      '<p class="lead">See every tag, trigger and variable, how they connect, and what needs fixing. Drop two versions of the same container to see what changed between them.</p>' +
+      dropZone('Drag one or two GTM .json exports here', 'or click to choose files', true) +
+      '<p class="privacy"><b>Private by design:</b> the file is read by your browser only. Nothing is uploaded or saved, and refreshing the page clears it.</p>' +
+      '<div class="row gap center"><button class="btn" data-do="demo">Try a demo container</button><button class="btn" data-do="demo2">Try a demo comparison</button><button class="btn ghost" data-tab="help">How to export from GTM</button></div>' +
+      '</section>';
+  }
+
+  /* ---------- overview ---------- */
+  function scoreStatus(s) { return s >= 80 ? ['good', 'Healthy'] : s >= 50 ? ['warning', 'Needs attention'] : ['critical', 'At risk']; }
+  function viewOverview() {
+    var A = S.cur, M = A.model, m = M.meta;
+    var active = M.tags.filter(function (t) { return !t.paused; }).length;
+    var sevCount = {}; C.SEVERITIES.forEach(function (s) { sevCount[s] = 0; });
+    A.issues.forEach(function (i) { sevCount[i.severity] += findings(i); });
+    var st = scoreStatus(A.score);
+    var h = '<section class="meta card"><div><div class="eyebrow">Container</div><div class="big">' + esc(m.container.name) + '</div><div class="muted">' + esc(m.container.publicId) + (m.container.usageContext ? ' · ' + esc(m.container.usageContext) : '') + ' · Account ' + esc(m.container.accountId) + ' · Container ' + esc(m.container.containerId) + '</div></div>' +
+      '<div><div class="eyebrow">Version</div><div class="big">' + esc(m.versionId) + (m.versionName ? ' <span class="muted small">' + esc(m.versionName) + '</span>' : '') + '</div><div class="muted">Exported ' + esc(m.exportTime || 'unknown') + ' · ' + esc(m.fileName) + '</div></div></section>';
+    h += '<section class="tiles">' +
+      '<div class="tile"><div class="tl">Health score</div><div class="tv">' + A.score + '<span class="of">/100</span></div><div class="status st-' + st[0] + '"><span class="glyph" aria-hidden="true">' + (st[0] === 'good' ? '✓' : st[0] === 'warning' ? '!' : '■') + '</span>' + st[1] + '</div><div class="tiny muted">Guide only: weighted by issue severity</div></div>' +
+      '<div class="tile clickable" data-tab="explorer"><div class="tl">Tags</div><div class="tv">' + M.tags.length + '</div><div class="muted">' + active + ' active · ' + (M.tags.length - active) + ' paused</div></div>' +
+      '<div class="tile"><div class="tl">Triggers</div><div class="tv">' + M.triggers.length + '</div><div class="muted">' + M.triggers.filter(function (t) { return t.firesTags.length || t.blocksTags.length || t.inGroups.length; }).length + ' in use</div></div>' +
+      '<div class="tile"><div class="tl">Variables</div><div class="tv">' + M.variables.length + '</div><div class="muted">+ ' + m.builtIns.length + ' built-in enabled</div></div>' +
+      '<div class="tile clickable" data-tab="issues"><div class="tl">Findings</div><div class="sevrow">' + ['critical', 'high', 'medium', 'low'].map(function (s) { return sevBadge(s, sevCount[s]); }).join('') + '</div></div>' +
+      '</section>';
+
+    // charts
+    var byType = {};
+    M.tags.forEach(function (t) { var r = byType[t.typeLabel] = byType[t.typeLabel] || { a: 0, p: 0 }; t.paused ? r.p++ : r.a++; });
+    var typeRows = Object.keys(byType).map(function (k) { return { label: k, value: byType[k].a + byType[k].p, tip: '<b>' + esc(k) + '</b><br>' + byType[k].a + ' active · ' + byType[k].p + ' paused' }; }).sort(function (a, b) { return b.value - a.value; });
+    if (typeRows.length > 12) { var rest = typeRows.slice(11); typeRows = typeRows.slice(0, 11); typeRows.push({ label: 'Other (' + rest.length + ' types)', value: rest.reduce(function (s, r) { return s + r.value; }, 0), tip: rest.map(function (r) { return esc(r.label) + ': ' + r.value; }).join('<br>') }); }
+
+    var catRows = C.CATEGORIES.map(function (cat) {
+      var segs = C.SEVERITIES.map(function (s) { var n = A.issues.filter(function (i) { return i.category === cat && i.severity === s; }).reduce(function (x, i) { return x + findings(i); }, 0); return { key: s, value: n }; });
+      return { label: cat, segs: segs };
+    });
+
+    var cons = { g: 0, n: 0, nn: 0, ns: 0 };
+    M.tags.forEach(function (t) { if (t.paused) return; if (t.consentStatus === 'needed') cons.n++; else if (t.consentStatus === 'notNeeded') cons.nn++; else if (t.isGoogle || t.type === 'gclidw') cons.g++; else cons.ns++; });
+    var consSegs = [
+      { key: 's1', label: 'Google tag (built-in consent checks)', value: cons.g },
+      { key: 's2', label: 'Additional consent required', value: cons.n },
+      { key: 's3', label: 'No additional consent required', value: cons.nn },
+      { key: 's4', label: 'Not set (non-Google)', value: cons.ns }
+    ];
+
+    var trigRows = M.triggers.map(function (t) { return { label: t.name, value: t.firesTags.length, go: 'trigger:' + t.id, tip: '<b>' + esc(t.name) + '</b><br>' + esc(t.typeLabel) + '<br>fires ' + plural(t.firesTags.length, 'tag') }; });
+    var builtUse = {};
+    M.tags.forEach(function (t) { t.firing.forEach(function (id) { if (C.BUILTIN_TRIGGERS[id]) builtUse[id] = (builtUse[id] || 0) + 1; }); });
+    Object.keys(builtUse).forEach(function (id) { trigRows.push({ label: C.BUILTIN_TRIGGERS[id] + ' (built-in)', value: builtUse[id], tip: '<b>' + esc(C.BUILTIN_TRIGGERS[id]) + '</b><br>built-in trigger<br>fires ' + plural(builtUse[id], 'tag') }); });
+    trigRows = trigRows.filter(function (r) { return r.value > 0; }).sort(function (a, b) { return b.value - a.value; }).slice(0, 10);
+
+    h += '<section class="grid2">' +
+      chartCard('Tags by type', 'All tags, active and paused', hbar(typeRows), table(['Type', 'Tags'], typeRows.map(function (r) { return [r.label, r.value]; }))) +
+      chartCard('Findings by category', 'Each listed item counts once, colored by severity', stacked(catRows) + sevLegend(), table(['Category'].concat(C.SEVERITIES.map(function (s) { return SEV_LABEL[s]; })), catRows.map(function (r) { return [r.label].concat(r.segs.map(function (s) { return s.value; })); }))) +
+      chartCard('Consent settings on active tags', 'From each tag\'s Advanced Settings > Consent Settings', segBar(consSegs), table(['Consent setting', 'Active tags'], consSegs.map(function (s) { return [s.label, s.value]; }))) +
+      chartCard('Busiest triggers', 'Top 10 triggers by number of tags they fire', hbar(trigRows), table(['Trigger', 'Tags fired'], trigRows.map(function (r) { return [r.label, r.value]; }))) +
+      '</section>';
+
+    // top issues + inventory
+    var top = A.issues.filter(function (i) { return i.severity === 'critical' || i.severity === 'high'; }).slice(0, 6);
+    h += '<section class="grid2">' +
+      '<div class="card"><div class="card-h"><h2>Fix first</h2><button class="btn small ghost" data-tab="issues">All findings →</button></div>' +
+      (top.length ? '<ul class="toplist">' + top.map(function (i) { return '<li>' + sevBadge(i.severity) + '<div><div class="b">' + esc(i.title) + '</div><div class="muted small">' + (i.entities.length ? esc(i.entities.slice(0, 3).map(function (e) { return e.name; }).join(', ')) + (i.entities.length > 3 ? ' +' + (i.entities.length - 3) + ' more' : '') : 'Container-wide') + '</div></div></li>'; }).join('') + '</ul>' : '<p class="muted">No critical or high findings. Nice.</p>') + '</div>' +
+      '<div class="card"><div class="card-h"><h2>IDs and vendors in this container</h2></div>' + inventory(A) + '</div>' +
+      '</section>';
+    return h;
+  }
+  function inventory(A) {
+    var inv = A.inventory, M = A.model;
+    function rows(obj, label) {
+      var ks = Object.keys(obj); if (!ks.length) return '';
+      return '<tr><th colspan="2">' + label + '</th></tr>' + ks.map(function (k) { return '<tr><td class="mono">' + esc(k) + '</td><td>' + uniqNames(obj[k]).map(function (n) { var t = M.tagByName[n]; return t ? '<button class="chip ent" data-go="tag:' + esc(t.id) + '">' + esc(n) + '</button>' : esc(n); }).join(' ') + '</td></tr>'; }).join('');
+    }
+    var html = rows(inv.googleIds, 'Google tag / GA4 IDs') + rows(inv.adsIds, 'Google Ads conversion IDs') + rows(inv.floodlight, 'Floodlight advertiser IDs') + rows(inv.domains, 'Third-party domains (Custom HTML / Image)');
+    return html ? '<div class="tablewrap"><table class="inv">' + html + '</table></div>' : '<p class="muted">No Google, Floodlight or third-party IDs found.</p>';
+  }
+  function uniqNames(a) { var s = {}; return a.filter(function (x) { if (s[x]) return false; s[x] = 1; return true; }); }
+
+  /* ---------- chart primitives ---------- */
+  function chartCard(title, sub, body, tbl) {
+    return '<div class="card"><div class="card-h"><div><h2>' + esc(title) + '</h2><div class="muted small">' + esc(sub) + '</div></div></div>' + body + '<details class="tbl"><summary>Show as table</summary>' + tbl + '</details></div>';
+  }
+  function table(head, rows) {
+    return '<div class="tablewrap"><table><thead><tr>' + head.map(function (h) { return '<th>' + esc(h) + '</th>'; }).join('') + '</tr></thead><tbody>' + rows.map(function (r) { return '<tr>' + r.map(function (c, i) { return '<td' + (i && typeof c === 'number' ? ' class="num"' : '') + '>' + esc(c) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div>';
+  }
+  function hbar(rows) {
+    if (!rows.length) return '<p class="muted">Nothing to show.</p>';
+    var max = Math.max.apply(null, rows.map(function (r) { return r.value; })) || 1;
+    return '<div class="hbar">' + rows.map(function (r) {
+      return '<div class="hrow' + (r.go ? ' clickable' : '') + '"' + (r.go ? ' data-go="' + esc(r.go) + '"' : '') + ' data-tip="' + esc(r.tip) + '"><div class="hl" title="' + esc(r.label) + '">' + esc(r.label) + '</div><div class="htrack"><div class="hfill" style="width:' + Math.max(1.5, r.value / max * 100) + '%"></div></div><div class="hv">' + r.value + '</div></div>';
+    }).join('') + '</div>';
+  }
+  function stacked(rows) {
+    var max = Math.max.apply(null, rows.map(function (r) { return r.segs.reduce(function (s, x) { return s + x.value; }, 0); })) || 1;
+    return '<div class="hbar">' + rows.map(function (r) {
+      var tot = r.segs.reduce(function (s, x) { return s + x.value; }, 0);
+      var tip = '<b>' + esc(r.label) + '</b><br>' + r.segs.filter(function (s) { return s.value; }).map(function (s) { return SEV_LABEL[s.key] + ': ' + s.value; }).join('<br>') + (tot ? '' : 'No findings');
+      return '<div class="hrow clickable" data-tab="issues" data-tip="' + esc(tip) + '"><div class="hl">' + esc(r.label) + '</div><div class="htrack"><div class="stack" style="width:' + (tot / max * 100) + '%">' +
+        r.segs.filter(function (s) { return s.value; }).map(function (s) { return '<div class="seg sevfill-' + s.key + '" style="flex:' + s.value + '"></div>'; }).join('') + '</div></div><div class="hv">' + tot + '</div></div>';
+    }).join('') + '</div>';
+  }
+  function sevLegend() { return '<div class="legend">' + C.SEVERITIES.map(function (s) { return '<span><i class="sw sevfill-' + s + '"></i>' + SEV_LABEL[s] + '</span>'; }).join('') + '</div>'; }
+  function segBar(segs) {
+    var tot = segs.reduce(function (s, x) { return s + x.value; }, 0) || 1;
+    return '<div class="segbar">' + segs.filter(function (s) { return s.value; }).map(function (s) { return '<div class="seg cat-' + s.key + '" style="flex:' + s.value + '" data-tip="<b>' + esc(s.label) + '</b><br>' + s.value + ' tags (' + Math.round(s.value / tot * 100) + '%)"></div>'; }).join('') + '</div>' +
+      '<div class="legend col">' + segs.map(function (s) { return '<span><i class="sw cat-' + s.key + '"></i>' + esc(s.label) + ' <b>' + s.value + '</b></span>'; }).join('') + '</div>';
+  }
+
+  /* ---------- issues ---------- */
+  function viewIssues() {
+    var A = S.cur, cnt = {};
+    C.SEVERITIES.forEach(function (s) { cnt[s] = 0; });
+    A.issues.forEach(function (i) { cnt[i.severity] += findings(i); });
+    return '<section class="toolbar card">' +
+      '<div class="row gap wrap">' + C.SEVERITIES.map(function (s) { return '<button class="toggle' + (S.iss.sev[s] ? ' on' : '') + '" data-do="sev" data-sev="' + s + '" aria-pressed="' + !!S.iss.sev[s] + '">' + sevBadge(s, cnt[s]) + '</button>'; }).join('') + '</div>' +
+      '<div class="row gap wrap"><select data-bind="iss.cat" aria-label="Category"><option value="">All categories</option>' + C.CATEGORIES.map(function (c) { return '<option' + (S.iss.cat === c ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select>' +
+      '<input type="search" placeholder="Search findings or names" data-bind="iss.q" value="' + esc(S.iss.q) + '" aria-label="Search findings">' +
+      '<button class="btn" data-do="copy-issues">Copy as checklist</button></div></section><section id="issueList"></section>';
+  }
+  function filteredIssues() {
+    var q = S.iss.q.toLowerCase();
+    return S.cur.issues.filter(function (i) {
+      if (!S.iss.sev[i.severity]) return false;
+      if (S.iss.cat && i.category !== S.iss.cat) return false;
+      if (q && (i.title + ' ' + i.why + ' ' + i.entities.map(function (e) { return e.name + ' ' + e.note; }).join(' ')).toLowerCase().indexOf(q) < 0) return false;
+      return true;
+    });
+  }
+  function renderIssueList() {
+    var el = $('#issueList'); if (!el) return;
+    var list = filteredIssues();
+    if (!list.length) { el.innerHTML = '<div class="card"><p class="muted">No findings match these filters.</p></div>'; return; }
+    el.innerHTML = list.map(function (i) {
+      var open = i.severity === 'critical' || i.severity === 'high';
+      return '<details class="issue card sevborder-' + i.severity + '"' + (open ? ' open' : '') + '><summary>' + sevBadge(i.severity) + '<span class="it">' + esc(i.title) + '</span><span class="muted small">' + esc(i.category) + '</span><span class="count">' + (i.entities.length ? plural(i.entities.length, 'item') : 'Container-wide') + '</span></summary>' +
+        '<div class="ib"><p>' + esc(i.why) + '</p>' +
+        (i.entities.length ? '<ul class="ents">' + i.entities.map(function (e) { return '<li>' + entChip(e) + ' <span class="muted small">' + esc(e.note) + '</span></li>'; }).join('') + '</ul>' : '') +
+        '<div class="fix"><b>How to fix:</b> ' + esc(i.fix) + '</div></div></details>';
+    }).join('');
+  }
+  function entChip(e) {
+    if (e.kind === 'folder') return '<span class="chip">Folder: ' + esc(e.name) + '</span>';
+    return '<button class="chip ent" data-go="' + e.kind + ':' + esc(e.id) + '"><span class="k">' + KIND_LABEL[e.kind] + '</span>' + esc(e.name) + '</button>';
+  }
+  function issuesText() {
+    var m = S.cur.model.meta, list = filteredIssues();
+    var out = ['GTM audit: ' + m.container.name + ' (' + m.container.publicId + ') version ' + m.versionId + (m.versionName ? ' "' + m.versionName + '"' : ''), 'Health score: ' + S.cur.score + '/100 (guide only)', ''];
+    list.forEach(function (i) {
+      out.push('⬜ [' + SEV_LABEL[i.severity].toUpperCase() + '] ' + i.title + ' (' + i.category + ')');
+      i.entities.forEach(function (e) { out.push('    - ' + KIND_LABEL[e.kind] + ': ' + e.name + (e.note ? ': ' + e.note : '')); });
+      if (!i.entities.length) out.push('    - ' + i.why);
+      out.push('    Fix: ' + i.fix);
+      out.push('');
+    });
+    return out.join('\n');
+  }
+
+  /* ---------- explorer ---------- */
+  function listFor(kind) { var M = S.cur.model; return kind === 'tag' ? M.tags : kind === 'trigger' ? M.triggers : M.variables; }
+  function viewExplorer() {
+    var M = S.cur.model, k = S.exp.kind;
+    var types = uniqNames(listFor(k).map(function (e) { return e.typeLabel; })).sort();
+    return '<section class="explorer">' +
+      '<div class="card listpane"><div class="seg-ctl" role="tablist">' +
+      ['tag', 'trigger', 'variable'].map(function (x) { return '<button role="tab" aria-selected="' + (x === k) + '" class="' + (x === k ? 'on' : '') + '" data-do="kind" data-kind="' + x + '">' + KIND_LABEL[x] + 's <span class="muted">' + listFor(x).length + '</span></button>'; }).join('') + '</div>' +
+      '<div class="row gap wrap filters"><input type="search" placeholder="Search name, type or setting" data-bind="exp.q" value="' + esc(S.exp.q) + '" aria-label="Search">' +
+      '<select data-bind="exp.type" aria-label="Type"><option value="">All types</option>' + types.map(function (t) { return '<option' + (S.exp.type === t ? ' selected' : '') + '>' + esc(t) + '</option>'; }).join('') + '</select>' +
+      (k === 'tag' ? '<select data-bind="exp.status" aria-label="Status"><option value="">Active + paused</option><option value="active"' + (S.exp.status === 'active' ? ' selected' : '') + '>Active</option><option value="paused"' + (S.exp.status === 'paused' ? ' selected' : '') + '>Paused</option></select>' : '') +
+      '<label class="check"><input type="checkbox" data-bind="exp.issuesOnly"' + (S.exp.issuesOnly ? ' checked' : '') + '> With findings only</label></div>' +
+      '<div id="expList" class="tablewrap tall"></div></div>' +
+      '<div class="card detailpane" id="detail"></div></section>';
+  }
+  function renderExplorerList() {
+    var el = $('#expList'); if (!el) return;
+    var A = S.cur, M = A.model, k = S.exp.kind, q = S.exp.q.toLowerCase();
+    var rows = listFor(k).filter(function (e) {
+      if (S.exp.type && e.typeLabel !== S.exp.type) return false;
+      if (k === 'tag' && S.exp.status === 'active' && e.paused) return false;
+      if (k === 'tag' && S.exp.status === 'paused' && !e.paused) return false;
+      if (S.exp.issuesOnly && !(A.byEntity[k + ':' + e.id] || []).some(function (i) { return i.severity !== 'info'; })) return false;
+      if (q) {
+        var hay = (e.name + ' ' + e.typeLabel + ' ' + JSON.stringify(e.flat || e.other || {}) + ' ' + (e.conditions ? e.conditions.map(function (c) { return c.text; }).join(' ') : '')).toLowerCase();
+        if (hay.indexOf(q) < 0) return false;
+      }
+      return true;
+    }).sort(function (a, b) { return a.name.localeCompare(b.name); });
+    var head = k === 'tag' ? ['Name', 'Type', 'Status', 'Fires on', 'Findings'] : k === 'trigger' ? ['Name', 'Type', 'Tags fired', 'Findings'] : ['Name', 'Type', 'Used by', 'Findings'];
+    el.innerHTML = '<div class="muted small pad">' + plural(rows.length, KIND_LABEL[k].toLowerCase()) + '</div><table class="list"><thead><tr>' + head.map(function (h) { return '<th>' + h + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      rows.map(function (e) {
+        var iss = (A.byEntity[k + ':' + e.id] || []).filter(function (i) { return i.severity !== 'info'; }); if (!iss.length) iss = null; var w = worstSev(iss);
+        var f = iss ? '<span class="sev sev-' + w + ' compact" title="' + esc(iss.map(function (i) { return i.title; }).join('\n')) + '"><span class="glyph" aria-hidden="true">' + SEV_GLYPH[w] + '</span>' + iss.length + '</span>' : '<span class="muted">-</span>';
+        var cells = k === 'tag' ? [e.typeLabel, e.paused ? '<span class="pill">Paused</span>' : 'Active', esc(e.firing.map(M.triggerName).join(', ') || '(none)')]
+          : k === 'trigger' ? [e.typeLabel, '<span class="num">' + e.firesTags.length + '</span>']
+            : [e.typeLabel, '<span class="num">' + e.usedBy.length + '</span>'];
+        var sel = S.exp.sel && S.exp.sel.kind === k && S.exp.sel.id === e.id;
+        return '<tr class="pick' + (sel ? ' sel' : '') + '" data-do="pick" data-kind="' + k + '" data-id="' + esc(e.id) + '" tabindex="0"><td class="b">' + esc(e.name) + '</td>' + cells.map(function (c, i) { return '<td>' + (i === 0 ? esc(c) : c) + '</td>'; }).join('') + '<td>' + f + '</td></tr>';
+      }).join('') + '</tbody></table>';
+  }
+  function markSelected() {
+    Array.prototype.forEach.call(document.querySelectorAll('#expList tr.pick'), function (r) {
+      r.classList.toggle('sel', !!(S.exp.sel && r.getAttribute('data-kind') === S.exp.sel.kind && r.getAttribute('data-id') === S.exp.sel.id));
+    });
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && e.target.matches && e.target.matches('tr.pick')) e.target.click();
+  });
+
+  function trigChip(M, id) {
+    var t = M.trigById[id];
+    if (t) return '<button class="chip ent" data-go="trigger:' + esc(id) + '" data-tip="' + esc('<b>' + esc(t.name) + '</b><br>' + esc(t.typeLabel) + (t.conditions.length ? '<br>' + t.conditions.map(function (c) { return esc(c.text); }).join('<br>') : '<br>No conditions (all events of this type)')) + '">' + esc(t.name) + '</button>';
+    if (C.BUILTIN_TRIGGERS[id]) return '<span class="chip">' + esc(C.BUILTIN_TRIGGERS[id]) + ' <span class="muted">built-in</span></span>';
+    return '<span class="chip bad">Missing trigger ' + esc(id) + '</span>';
+  }
+  function varChip(M, name) {
+    var v = M.varByName[name];
+    if (v) return '<button class="chip ent" data-go="variable:' + esc(v.id) + '" data-tip="' + esc('<b>' + esc(v.name) + '</b><br>' + esc(v.typeLabel) + (v.type === 'c' ? '<br>Value: ' + esc(v.flat.value) : v.type === 'v' ? '<br>dataLayer key: ' + esc(v.flat.name) : '')) + '">' + esc(name) + '</button>';
+    if (M.builtInNames[name] || name === '_event') return '<span class="chip">' + esc(name) + ' <span class="muted">built-in</span></span>';
+    return '<span class="chip bad">{{' + esc(name) + '}} missing</span>';
+  }
+  function tagChip(M, id) { var t = M.tagById[id]; return t ? '<button class="chip ent" data-go="tag:' + esc(id) + '">' + esc(t.name) + (t.paused ? ' <span class="muted">paused</span>' : '') + '</button>' : ''; }
+  function col(title, items, empty) { return '<div class="flowcol"><div class="eyebrow">' + title + '</div>' + (items.length ? items.join('') : '<span class="muted small">' + (empty || 'None') + '</span>') + '</div>'; }
+  function settingsTable(flat) {
+    var ks = Object.keys(flat || {});
+    if (!ks.length) return '<p class="muted small">No settings.</p>';
+    return '<div class="tablewrap"><table class="kv">' + ks.map(function (k) {
+      var v = flat[k];
+      var long = v.length > 120 || v.indexOf('\n') >= 0;
+      return '<tr><th>' + esc(k) + '</th><td>' + (long ? '<pre class="code">' + hl(v) + '</pre>' : '<span class="mono">' + hl(v) + '</span>') + '</td></tr>';
+    }).join('') + '</table></div>';
+  }
+  function hl(v) { return esc(v).replace(/\{\{([^{}]+)\}\}/g, '<mark class="vref">{{$1}}</mark>'); }
+
+  function renderExplorerDetail() {
+    var el = $('#detail'); if (!el) return;
+    var A = S.cur, M = A.model, sel = S.exp.sel;
+    var e = sel && (sel.kind === 'tag' ? M.tagById[sel.id] : sel.kind === 'trigger' ? M.trigById[sel.id] : M.variables.filter(function (v) { return v.id === sel.id; })[0]);
+    if (!e) { el.innerHTML = '<div class="empty-detail"><p class="b">Pick an item to troubleshoot it</p><p class="muted">You\'ll see what fires it, what it blocks, which variables it reads, its settings, and any findings.</p></div>'; return; }
+    var iss = A.byEntity[e.kind + ':' + e.id] || [];
+    var h = '<div class="dh"><div class="eyebrow">' + KIND_LABEL[e.kind] + ' · ' + esc(e.typeLabel) + '</div><h2>' + esc(e.name) + '</h2><div class="row gap wrap">' +
+      (e.kind === 'tag' ? (e.paused ? '<span class="pill warn">Paused</span>' : '<span class="pill ok">Active</span>') : '') +
+      (e.folder ? '<span class="pill">Folder: ' + esc(e.folder) + '</span>' : '') + '<span class="pill">ID ' + esc(e.id) + '</span></div></div>';
+    if (iss.length) h += '<div class="dsec"><h3>Findings</h3>' + iss.map(function (i) {
+      var mine = i.entities.filter(function (x) { return x.kind === e.kind && x.id === e.id; })[0];
+      return '<div class="mini sevborder-' + i.severity + '">' + sevBadge(i.severity) + ' <b>' + esc(i.title) + '</b>' + (mine && mine.note ? '<div class="muted small">' + esc(mine.note) + '</div>' : '') + '<div class="small">' + esc(i.fix) + '</div></div>';
+    }).join('') + '</div>';
+    else h += '<div class="dsec"><div class="status st-good"><span class="glyph" aria-hidden="true">✓</span>No findings for this ' + e.kind + '</div></div>';
+
+    if (e.kind === 'tag') {
+      var vars = e.refs;
+      h += '<div class="dsec"><h3>How it fires</h3><div class="flow">' +
+        col('Firing triggers', e.firing.map(function (id) { return trigChip(M, id); }), 'No firing trigger') +
+        '<div class="arrow" aria-hidden="true">→</div><div class="flowcol center"><div class="node">' + esc(e.name) + '</div>' + (e.blocking.length ? '<div class="eyebrow">Exceptions (block)</div>' + e.blocking.map(function (id) { return trigChip(M, id); }).join('') : '') + '</div>' +
+        '<div class="arrow" aria-hidden="true">←</div>' + col('Reads variables', vars.map(function (n) { return varChip(M, n); }), 'No variables') + '</div>' +
+        ((e.setup.length || e.teardown.length || e.usedAsSetupBy.length || e.usedAsCleanupBy.length) ? '<div class="flowmeta">' +
+          (e.setup.length ? '<div>Setup tag: ' + e.setup.map(function (n) { return M.tagByName[n] ? tagChip(M, M.tagByName[n].id) : '<span class="chip bad">' + esc(n) + ' missing</span>'; }).join('') + '</div>' : '') +
+          (e.teardown.length ? '<div>Cleanup tag: ' + e.teardown.map(function (n) { return M.tagByName[n] ? tagChip(M, M.tagByName[n].id) : '<span class="chip bad">' + esc(n) + ' missing</span>'; }).join('') + '</div>' : '') +
+          (e.usedAsSetupBy.length ? '<div>Setup tag for: ' + e.usedAsSetupBy.map(function (id) { return tagChip(M, id); }).join('') + '</div>' : '') +
+          (e.usedAsCleanupBy.length ? '<div>Cleanup tag for: ' + e.usedAsCleanupBy.map(function (id) { return tagChip(M, id); }).join('') + '</div>' : '') + '</div>' : '') + '</div>';
+      h += '<div class="dsec"><h3>Advanced settings</h3><div class="tablewrap"><table class="kv">' +
+        '<tr><th>Consent Settings</th><td>' + esc({ notSet: 'Not set', notNeeded: 'No additional consent required', needed: 'Require additional consent' }[e.consentStatus] || e.consentStatus) + (e.consentTypes.length ? ': ' + esc(e.consentTypes.join(', ')) : '') + (e.isGoogle ? ' <span class="muted">(Google tag: built-in consent checks apply)</span>' : '') + '</td></tr>' +
+        '<tr><th>Tag firing options</th><td>' + esc({ oncePerEvent: 'Once per event', oncePerLoad: 'Once per page', unlimited: 'Unlimited' }[e.firingOption] || e.firingOption) + '</td></tr>' +
+        (e.priority ? '<tr><th>Tag firing priority</th><td>' + esc(e.priority) + '</td></tr>' : '') +
+        (e.schedule ? '<tr><th>Schedule</th><td>Has a start/end schedule</td></tr>' : '') +
+        (e.notes ? '<tr><th>Notes</th><td>' + esc(e.notes) + '</td></tr>' : '') + '</table></div></div>';
+      h += '<div class="dsec"><h3>Tag configuration</h3>' + settingsTable(e.flat) + '</div>';
+    } else if (e.kind === 'trigger') {
+      h += '<div class="dsec"><h3>Fires when</h3>' + (e.conditions.length ? '<ul class="conds">' + e.conditions.map(function (c) { return '<li class="mono">' + hl(c.text) + '</li>'; }).join('') + '</ul><p class="muted small">All conditions must be true.</p>' : '<p>' + (e.type === 'triggerGroup' ? 'All member triggers have fired.' : 'Every <b>' + esc(e.typeLabel) + '</b> event (no conditions).') + '</p>') + '</div>';
+      h += '<div class="dsec"><h3>Connections</h3><div class="flow">' +
+        col('Reads variables', e.refs.map(function (n) { return varChip(M, n); }), 'No variables') +
+        '<div class="arrow" aria-hidden="true">→</div><div class="flowcol center"><div class="node">' + esc(e.name) + '</div></div><div class="arrow" aria-hidden="true">→</div>' +
+        col('Fires tags', e.firesTags.map(function (id) { return tagChip(M, id); }), 'Fires no tags') + '</div>' +
+        '<div class="flowmeta">' + (e.blocksTags.length ? '<div>Blocks (exception for): ' + e.blocksTags.map(function (id) { return tagChip(M, id); }).join('') + '</div>' : '') +
+        (e.groupIds.length ? '<div>Group members: ' + e.groupIds.map(function (id) { return trigChip(M, id); }).join('') + '</div>' : '') +
+        (e.inGroups.length ? '<div>Member of trigger group: ' + e.inGroups.map(function (id) { return trigChip(M, id); }).join('') + '</div>' : '') + '</div></div>';
+      if (Object.keys(e.other).length) h += '<div class="dsec"><h3>Trigger settings</h3>' + settingsTable(e.other) + '</div>';
+    } else {
+      var usedTags = e.usedBy.filter(function (u) { return u.kind === 'tag'; }), usedTr = e.usedBy.filter(function (u) { return u.kind === 'trigger'; }), usedV = e.usedBy.filter(function (u) { return u.kind === 'variable'; });
+      var varById = {}; M.variables.forEach(function (v) { varById[v.id] = v; });
+      h += '<div class="dsec"><h3>Where it is used</h3><div class="flow">' +
+        col('Reads variables', e.refs.filter(function (n) { return n !== e.name; }).map(function (n) { return varChip(M, n); }), 'None') +
+        '<div class="arrow" aria-hidden="true">→</div><div class="flowcol center"><div class="node">' + esc(e.name) + '</div></div><div class="arrow" aria-hidden="true">→</div>' +
+        col('Used by', usedTags.map(function (u) { return tagChip(M, u.id); }).concat(usedTr.map(function (u) { return trigChip(M, u.id); }), usedV.map(function (u) { return varChip(M, varById[u.id].name); })), 'Not used anywhere') + '</div></div>';
+      h += '<div class="dsec"><h3>Variable configuration</h3>' + settingsTable(e.flat) + '</div>';
+    }
+    h += '<details class="dsec raw"><summary>Raw JSON from the export</summary><pre class="code">' + esc(JSON.stringify(e.raw, null, 2)) + '</pre></details>';
+    el.innerHTML = h;
+  }
+
+  /* ---------- map ---------- */
+  function viewMap() {
+    return '<section class="card"><div class="card-h"><div><h2>Firing map</h2><div class="muted small">Triggers → tags ← variables. Hover a box to trace its connections; click to open it in the Explorer.</div></div>' +
+      '<div class="row gap wrap"><input type="search" placeholder="Filter by tag, trigger or type" data-bind="map.q" value="' + esc(S.map.q) + '" aria-label="Filter map"><label class="check"><input type="checkbox" data-bind="map.vars"' + (S.map.vars ? ' checked' : '') + '> Show variables</label></div></div>' +
+      '<div class="legend"><span><i class="ln"></i>Fires</span><span><i class="ln block"></i>Blocks (exception)</span><span><i class="ln var"></i>Reads variable</span><span><i class="sw paused"></i>Paused tag</span><span><i class="sw bad"></i>Has critical/high finding</span></div>' +
+      '<div id="mapWrap" class="mapwrap"></div></section>';
+  }
+  function trunc(s, n) { return s.length > n ? s.slice(0, n - 1) + '…' : s; }
+  function renderMapSvg() {
+    var wrap = $('#mapWrap'); if (!wrap) return;
+    var A = S.cur, M = A.model, q = S.map.q.toLowerCase();
+    var tags = M.tags.filter(function (t) {
+      if (!q) return true;
+      return (t.name + ' ' + t.typeLabel + ' ' + t.firing.concat(t.blocking).map(M.triggerName).join(' ') + ' ' + t.refs.join(' ')).toLowerCase().indexOf(q) >= 0;
+    });
+    if (!tags.length) { wrap.innerHTML = '<p class="muted pad">No tags match this filter.</p>'; return; }
+    var trigIds = [], seenT = {};
+    tags.forEach(function (t) { t.firing.concat(t.blocking).forEach(function (id) { if (!seenT[id]) { seenT[id] = 1; trigIds.push(id); } }); });
+    trigIds.sort(function (a, b) {
+      var ba = C.BUILTIN_TRIGGERS[a] ? 0 : 1, bb = C.BUILTIN_TRIGGERS[b] ? 0 : 1;
+      return ba - bb || M.triggerName(a).localeCompare(M.triggerName(b));
+    });
+    var tIndex = {}; trigIds.forEach(function (id, i) { tIndex[id] = i; });
+    tags = tags.slice().sort(function (a, b) {
+      var ma = Math.min.apply(null, a.firing.map(function (id) { return tIndex[id]; }).concat([999])), mb = Math.min.apply(null, b.firing.map(function (id) { return tIndex[id]; }).concat([999]));
+      return ma - mb || a.name.localeCompare(b.name);
+    });
+    var tagIndex = {}; tags.forEach(function (t, i) { tagIndex[t.id] = i; });
+    var vars = [];
+    if (S.map.vars) {
+      var vmin = {};
+      tags.forEach(function (t, i) { t.refs.forEach(function (n) { if (vmin[n] == null || i < vmin[n]) vmin[n] = i; }); });
+      vars = Object.keys(vmin).sort(function (a, b) { return vmin[a] - vmin[b] || a.localeCompare(b); });
+    }
+    var vIndex = {}; vars.forEach(function (n, i) { vIndex[n] = i; });
+    var RH = 28, BH = 22, W = 1120, CW = S.map.vars ? 300 : 380, TOP = 34;
+    var xT = 0, xG = S.map.vars ? (W - CW) / 2 : W - CW, xV = W - CW;
+    var n = Math.max(trigIds.length, tags.length, vars.length);
+    var H = TOP + n * RH + 10;
+    function yOf(i, count) { var off = (n - count) * RH / 2; return TOP + off + i * RH; }
+    var edges = [], nodes = [];
+    var bad = {};
+    A.issues.forEach(function (i) { if (i.severity === 'critical' || i.severity === 'high') i.entities.forEach(function (e) { bad[e.kind + ':' + e.id] = 1; }); });
+    tags.forEach(function (t) {
+      var yt = yOf(tagIndex[t.id], tags.length) + BH / 2;
+      t.firing.forEach(function (id) { var y = yOf(tIndex[id], trigIds.length) + BH / 2; edges.push({ a: 'r:' + id, b: 'g:' + t.id, x1: xT + CW, y1: y, x2: xG, y2: yt, cls: 'e-fire' }); });
+      t.blocking.forEach(function (id) { var y = yOf(tIndex[id], trigIds.length) + BH / 2; edges.push({ a: 'r:' + id, b: 'g:' + t.id, x1: xT + CW, y1: y, x2: xG, y2: yt, cls: 'e-block' }); });
+      if (S.map.vars) t.refs.forEach(function (nm) { var y = yOf(vIndex[nm], vars.length) + BH / 2; edges.push({ a: 'g:' + t.id, b: 'v:' + nm, x1: xG + CW, y1: yt, x2: xV, y2: y, cls: 'e-var' }); });
+    });
+    function node(key, x, y, label, sub, cls, goAttr, tip) {
+      return '<g class="nd ' + cls + '" data-k="' + esc(key) + '"' + (goAttr ? ' data-go="' + esc(goAttr) + '"' : '') + ' data-tip="' + esc(tip) + '"><rect x="' + x + '" y="' + y + '" width="' + CW + '" height="' + BH + '" rx="4"/><text x="' + (x + 8) + '" y="' + (y + 15) + '">' + esc(trunc(label, S.map.vars ? 34 : 46)) + '</text>' + (sub ? '<text class="sub" x="' + (x + CW - 8) + '" y="' + (y + 15) + '" text-anchor="end">' + esc(sub) + '</text>' : '') + '</g>';
+    }
+    trigIds.forEach(function (id, i) {
+      var t = M.trigById[id];
+      nodes.push(node('r:' + id, xT, yOf(i, trigIds.length), M.triggerName(id).replace(' (built-in)', ''), t ? '' : (C.BUILTIN_TRIGGERS[id] ? 'built-in' : 'missing'), 'n-trig' + (t ? '' : C.BUILTIN_TRIGGERS[id] ? ' builtin' : ' missing') + (bad['trigger:' + id] ? ' bad' : ''), t ? 'trigger:' + id : '',
+        '<b>' + esc(M.triggerName(id)) + '</b>' + (t ? '<br>' + esc(t.typeLabel) + (t.conditions.length ? '<br>' + t.conditions.map(function (c) { return esc(c.text); }).join('<br>') : '') : '')));
+    });
+    tags.forEach(function (t, i) {
+      nodes.push(node('g:' + t.id, xG, yOf(i, tags.length), t.name, '', 'n-tag' + (t.paused ? ' paused' : '') + (bad['tag:' + t.id] ? ' bad' : ''), 'tag:' + t.id,
+        '<b>' + esc(t.name) + '</b><br>' + esc(t.typeLabel) + (t.paused ? '<br>Paused' : '') + ((A.byEntity['tag:' + t.id] || []).length ? '<br>' + plural(A.byEntity['tag:' + t.id].length, 'finding') : '')));
+    });
+    vars.forEach(function (nm, i) {
+      var v = M.varByName[nm];
+      nodes.push(node('v:' + nm, xV, yOf(i, vars.length), nm, v ? '' : (M.builtInNames[nm] || nm === '_event' ? 'built-in' : 'missing'), 'n-var' + (v ? '' : (M.builtInNames[nm] || nm === '_event') ? ' builtin' : ' missing') + (v && bad['variable:' + v.id] ? ' bad' : ''), v ? 'variable:' + v.id : '',
+        '<b>' + esc(nm) + '</b>' + (v ? '<br>' + esc(v.typeLabel) : '')));
+    });
+    var heads = '<text class="colh" x="' + xT + '" y="18">Triggers (' + trigIds.length + ')</text><text class="colh" x="' + xG + '" y="18">Tags (' + tags.length + ')</text>' + (S.map.vars ? '<text class="colh" x="' + xV + '" y="18">Variables (' + vars.length + ')</text>' : '');
+    var paths = edges.map(function (e) { var mx = (e.x1 + e.x2) / 2; return '<path class="ed ' + e.cls + '" data-a="' + esc(e.a) + '" data-b="' + esc(e.b) + '" d="M' + e.x1 + ',' + e.y1 + ' C' + mx + ',' + e.y1 + ' ' + mx + ',' + e.y2 + ' ' + e.x2 + ',' + e.y2 + '"/>'; }).join('');
+    wrap.innerHTML = '<svg class="map" viewBox="0 0 ' + W + ' ' + H + '" width="100%" role="img" aria-label="Map of triggers, tags and variables">' + heads + '<g class="edges">' + paths + '</g>' + nodes.join('') + '</svg>';
+    var svg = wrap.querySelector('svg');
+    var adj = {};
+    edges.forEach(function (e) { (adj[e.a] = adj[e.a] || []).push(e.b); (adj[e.b] = adj[e.b] || []).push(e.a); });
+    function connected(k) {
+      var set = {}; set[k] = 1;
+      (adj[k] || []).forEach(function (x) {
+        set[x] = 1;
+        if (k[0] !== 'g') (adj[x] || []).forEach(function (y) { if (y[0] !== k[0]) set[y] = 1; });
+      });
+      return set;
+    }
+    svg.addEventListener('mouseover', function (ev) {
+      var g = ev.target.closest('.nd'); if (!g) return;
+      var set = connected(g.getAttribute('data-k'));
+      svg.classList.add('focus');
+      Array.prototype.forEach.call(svg.querySelectorAll('.nd'), function (n) { n.classList.toggle('hl', !!set[n.getAttribute('data-k')]); });
+      Array.prototype.forEach.call(svg.querySelectorAll('.ed'), function (p) { p.classList.toggle('hl', !!(set[p.getAttribute('data-a')] && set[p.getAttribute('data-b')])); });
+    });
+    svg.addEventListener('mouseleave', function () { svg.classList.remove('focus'); });
+  }
+
+  /* ---------- compare ---------- */
+  function viewCompare() {
+    if (!S.diff) {
+      return '<section class="card narrow"><h2>Compare two versions</h2><p>Drop a second export of <b>' + esc(S.cur.model.meta.container.name) + '</b> to see what was added, removed and edited, plus which findings were fixed or introduced.</p>' +
+        dropZone('Drag another version here', 'or click to choose a file', false) +
+        '<p class="muted small">Tip: in GTM, open Versions, select the earlier version, then use Admin > Export Container and pick that version. You can also drop both files at once from the start page.</p>' +
+        (S.demo ? '<button class="btn" data-do="demo2">Load the demo comparison</button>' : '') + '</section>';
+    }
+    var d = S.diff, O = S.prev.model.meta, N = S.cur.model.meta;
+    function cnt(list, kind, getter) { return list.filter(function (x) { return (getter ? getter(x) : x).kind === kind; }).length; }
+    var h = '<section class="card"><div class="card-h"><div><div class="eyebrow">Comparing</div><h2>v' + esc(O.versionId) + (O.versionName ? ' "' + esc(O.versionName) + '"' : '') + ' → v' + esc(N.versionId) + (N.versionName ? ' "' + esc(N.versionName) + '"' : '') + '</h2>' +
+      '<div class="muted small">Older: ' + esc(O.fileName) + ' (exported ' + esc(O.exportTime) + ') · Newer: ' + esc(N.fileName) + ' (exported ' + esc(N.exportTime) + ')</div></div>' +
+      '<div class="row gap wrap"><button class="btn small" data-do="swap">Swap older/newer</button><button class="btn small" data-do="copy-diff">Copy change log</button><button class="btn small ghost" data-do="clear-cmp">Clear comparison</button></div></div>' +
+      (!d.sameContainer ? '<div class="warnbox">These files are from different containers (' + esc(O.container.publicId) + ' and ' + esc(N.container.publicId) + '). Items were matched by name and type, so treat the comparison as approximate.</div>' : '') +
+      '<div class="summary"><div class="eyebrow">Summary</div><p>' + esc(d.summary) + '</p><button class="btn small ghost" data-do="copy-summary">Copy summary</button></div></section>';
+    h += '<section class="tiles">' + ['tag', 'trigger', 'variable'].map(function (k) {
+      return '<div class="tile"><div class="tl">' + KIND_LABEL[k] + 's</div><div class="deltas"><span class="d-add">+' + cnt(d.added, k) + ' added</span><span class="d-rem">−' + cnt(d.removed, k) + ' removed</span><span class="d-chg">~' + cnt(d.changed, k, function (c) { return c.after; }) + ' edited</span></div></div>';
+    }).join('') +
+      '<div class="tile"><div class="tl">Health score</div><div class="tv">' + S.prev.score + ' → ' + S.cur.score + '</div><div class="muted">' + (S.cur.score >= S.prev.score ? '+' : '') + (S.cur.score - S.prev.score) + ' points</div></div></section>';
+    function issueLines(list, empty) {
+      if (!list.length) return '<p class="muted small">' + empty + '</p>';
+      return '<ul class="ents">' + list.map(function (x) { return '<li>' + sevBadge(x.issue.severity) + ' ' + esc(x.issue.title) + (x.entity ? ': ' + (x.entity.kind !== 'folder' ? '<b>' + esc(x.entity.name) + '</b>' : esc(x.entity.name)) : '') + '</li>'; }).join('') + '</ul>';
+    }
+    h += '<section class="grid2"><div class="card"><h2>Findings fixed in v' + esc(N.versionId) + ' <span class="muted">(' + d.resolvedIssues.length + ')</span></h2>' + issueLines(d.resolvedIssues, 'None.') + '</div>' +
+      '<div class="card"><h2>Findings introduced in v' + esc(N.versionId) + ' <span class="muted">(' + d.newIssues.length + ')</span></h2>' + issueLines(d.newIssues, 'None.') + '</div></section>';
+    function entLine(e, newer) { return newer ? entChip(e) : '<span class="chip"><span class="k">' + KIND_LABEL[e.kind] + '</span>' + esc(e.name) + '</span>'; }
+    h += '<section class="card"><h2>Added <span class="muted">(' + d.added.length + ')</span></h2>' + (d.added.length ? '<ul class="ents">' + d.added.map(function (e) { return '<li>' + entLine(e, true) + ' <span class="muted small">' + esc(e.typeLabel) + '</span></li>'; }).join('') + '</ul>' : '<p class="muted small">Nothing added.</p>') + '</section>';
+    h += '<section class="card"><h2>Removed <span class="muted">(' + d.removed.length + ')</span></h2>' + (d.removed.length ? '<ul class="ents">' + d.removed.map(function (e) { return '<li>' + entLine(e, false) + ' <span class="muted small">' + esc(e.typeLabel) + '</span></li>'; }).join('') + '</ul>' : '<p class="muted small">Nothing removed.</p>') + '</section>';
+    h += '<section class="card"><h2>Edited <span class="muted">(' + d.changed.length + ')</span></h2>' + (d.changed.length ? d.changed.map(function (c) {
+      return '<details class="chg" open><summary>' + entChip(c.after) + ' <span class="muted small">' + plural(c.changes.length, 'field') + ' changed</span></summary><div class="tablewrap"><table class="diff"><thead><tr><th>Field</th><th>Before (v' + esc(O.versionId) + ')</th><th>After (v' + esc(N.versionId) + ')</th></tr></thead><tbody>' +
+        c.changes.map(function (x) {
+          if (x.lines) return '<tr><th>' + esc(x.field) + '</th><td colspan="2"><pre class="code linediff">' + x.lines.map(function (l) { return '<span class="ld ld' + (l[0] === '+' ? 'a' : l[0] === '-' ? 'r' : 'c') + '">' + esc(l[0] + ' ' + l[1]) + '</span>'; }).join('') + '</pre></td></tr>';
+          return '<tr><th>' + esc(x.field) + '</th><td class="was">' + (x.from === '' ? '<span class="muted">(empty)</span>' : hl(x.from)) + '</td><td class="now">' + (x.to === '' ? '<span class="muted">(empty)</span>' : hl(x.to)) + '</td></tr>';
+        }).join('') + '</tbody></table></div></details>';
+    }).join('') : '<p class="muted small">Nothing edited.</p>') + '</section>';
+    return h;
+  }
+  function diffText() {
+    var d = S.diff, O = S.prev.model.meta, N = S.cur.model.meta, out = [];
+    out.push('GTM change log: ' + N.container.name + ' (' + N.container.publicId + ')');
+    out.push('Version ' + O.versionId + (O.versionName ? ' "' + O.versionName + '"' : '') + ' to ' + N.versionId + (N.versionName ? ' "' + N.versionName + '"' : ''));
+    out.push(''); out.push(d.summary); out.push('');
+    if (d.added.length) { out.push('ADDED'); d.added.forEach(function (e) { out.push('- ' + KIND_LABEL[e.kind] + ': ' + e.name + ' (' + e.typeLabel + ')'); }); out.push(''); }
+    if (d.removed.length) { out.push('REMOVED'); d.removed.forEach(function (e) { out.push('- ' + KIND_LABEL[e.kind] + ': ' + e.name + ' (' + e.typeLabel + ')'); }); out.push(''); }
+    if (d.changed.length) {
+      out.push('EDITED');
+      d.changed.forEach(function (c) {
+        out.push('- ' + KIND_LABEL[c.after.kind] + ': ' + c.after.name);
+        c.changes.forEach(function (x) { out.push('    ' + x.field + ': ' + (x.lines ? '(multi-line change, see dashboard)' : '"' + x.from + '" -> "' + x.to + '"')); });
+      });
+      out.push('');
+    }
+    if (d.resolvedIssues.length) { out.push('FINDINGS FIXED'); d.resolvedIssues.forEach(function (x) { out.push('✅ ' + x.issue.title + (x.entity ? ': ' + x.entity.name : '')); }); out.push(''); }
+    if (d.newIssues.length) { out.push('FINDINGS INTRODUCED'); d.newIssues.forEach(function (x) { out.push('⬜ [' + SEV_LABEL[x.issue.severity].toUpperCase() + '] ' + x.issue.title + (x.entity ? ': ' + x.entity.name : '')); }); }
+    return out.join('\n');
+  }
+
+  /* ---------- help ---------- */
+  function viewHelp() {
+    return '<section class="card narrow"><h2>How to export a container from GTM</h2><ol class="steps">' +
+      '<li>Open the container in Google Tag Manager.</li>' +
+      '<li>Go to <b>Admin</b>, then under <b>Container</b> click <b>Export Container</b>.</li>' +
+      '<li>Under <b>Choose a version or workspace</b>, pick the version to audit. The <b>Live</b> version is usually the right one; pick a workspace to audit changes that are not yet published.</li>' +
+      '<li>Click <b>Export</b>. A <span class="mono">.json</span> file downloads.</li>' +
+      '<li>Drag the file onto this page (or click the drop area and choose it).</li></ol>' +
+      '<h3>To compare two versions</h3><ol class="steps"><li>Export the two versions you want to compare (for example the Live version and the one before it). In Export Container, the version picker lists every saved version.</li><li>Drop both files at once. The higher version number is treated as the newer one; use <b>Swap older/newer</b> if needed.</li></ol>' +
+      '<h3>What the audit checks</h3><ul class="plain">' +
+      '<li><b>Tracking correctness:</b> missing or deleted triggers and variables, tags with no trigger, tags blocked by their own trigger, empty GA4 event names, missing Google Ads / Floodlight IDs, Conversion Linker, duplicate tags, conversions on every page or set to Unlimited, sunset UA/Optimize tags.</li>' +
+      '<li><b>Consent & privacy:</b> Consent Mode defaults or a CMP tag, non-Google tags with no consent setting, possible personal data (email, phone, name, address) passed to tags.</li>' +
+      '<li><b>Hygiene & cleanup:</b> paused tags, unused triggers and variables, default names, empty folders.</li>' +
+      '<li><b>Security & performance:</b> http:// resources, document.write, eval(), Custom JavaScript variables with no return, Custom HTML on every page, third-party domains.</li></ul>' +
+      '<p class="muted small">Findings come from fixed rules applied to the export. They show what the configuration says, not what fires on the live site, so confirm fixes in GTM Preview mode. The health score is a guide weighted by severity, not a grade.</p>' +
+      '<h3>Privacy</h3><p>The file is read in your browser only. Nothing is uploaded, stored or sent anywhere, and refreshing the page clears it.</p>' +
+      (S.cur ? '' : '<div class="row gap"><button class="btn" data-do="demo">Try a demo container</button></div>') + '</section>';
+  }
+
+  /* ---------- boot ---------- */
+  var h0 = location.hash.slice(1);
+  if (TABS.indexOf(h0) >= 0) S.tab = h0;
+  render();
+})();
+</script>
+</body>
+</html>
