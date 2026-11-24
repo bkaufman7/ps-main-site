@@ -51,7 +51,7 @@ p { margin: 0 0 10px; }
 header.top { position: sticky; top: 0; z-index: 20; background: var(--page); border-bottom: 1px solid var(--ring); }
 .topin { max-width: 1320px; margin: 0 auto; padding: 10px 20px 0; }
 .brand { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.logo { font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.logo { background: none; border: 0; padding: 0; cursor: pointer; color: inherit; font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px; }
 .logo i { padding: 0 5px; height: 22px; border-radius: 6px; background: var(--accent); display: inline-grid; place-items: center; color: #fff; font-style: normal; font-size: 12px; }
 #ctx { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; flex: 1; min-width: 0; }
 .ctx-name { font-weight: 600; margin-left: 6px; }
@@ -285,10 +285,11 @@ details.outscope summary { cursor: pointer; color: var(--ink-2); }
 <body>
 <header class="top"><div class="topin">
   <div class="brand">
-    <div class="logo"><i>GTM</i>Container Audit</div>
+    <button class="logo" data-do="home" title="Back to the start page"><i>GTM</i>Container Audit</button>
     <div id="ctx"></div>
     <div class="hdr-actions">
       <a class="btn small ghost" href="../../index.html#tools" title="Back to the Platform Solutions site">← Platform Solutions</a>
+      <button class="btn small" data-do="home" title="Clear the loaded file and go back to the start page">⌂ Home</button>
       <label class="btn small" title="Load a different export">Load file<input type="file" accept=".json,application/json" multiple hidden></label>
       <button class="btn small ghost" id="themeBtn" title="Toggle light/dark">◐ Theme</button>
     </div>
@@ -1325,6 +1326,16 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
   }
   window.addEventListener('hashchange', function () { var h = location.hash.slice(1); if (h !== S.tab && TABS.indexOf(h) >= 0) { S.tab = h; render(); } });
 
+  function goHome() {
+    S.cur = null; S.prev = null; S.diff = null; S.pending = null; S.demo = false; S.exp.sel = null;
+    document.body.classList.remove('loaded');
+    $('#modal').hidden = true;
+    renderHeader();
+    S.tab = 'overview';
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { }
+    render();
+    window.scrollTo(0, 0);
+  }
   function goEntity(kind, id) {
     if (kind === 'folder') return;
     S.exp.kind = kind; S.exp.sel = { kind: kind, id: id };
@@ -1341,7 +1352,8 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
     var a = e.target.closest('[data-do]');
     if (!a) return;
     var d = a.getAttribute('data-do');
-    if (d === 'demo') loadDemo(false);
+    if (d === 'home') goHome();
+    else if (d === 'demo') loadDemo(false);
     else if (d === 'demo2') loadDemo(true);
     else if (d === 'swap') swapVersions();
     else if (d === 'copy-issues') copyText(issuesText());
