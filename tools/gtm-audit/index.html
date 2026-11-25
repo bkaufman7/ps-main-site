@@ -291,6 +291,15 @@ tr.vrow > td { padding: 0 0 12px 18px; background: var(--surface-2); }
 .libstatus { display: flex; gap: 10px; align-items: center; padding: 10px 0; color: var(--ink-2); }
 .spinner { width: 16px; height: 16px; border: 2px solid var(--grid); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+.modal-card.wide { max-width: 1080px; max-height: 88vh; overflow: auto; }
+.guide { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; margin: 12px 0; }
+.gcard { display: grid; grid-template-columns: 34px 1fr; gap: 10px; border: 1px solid var(--ring); border-radius: 12px; padding: 14px; background: var(--surface); }
+.gnum { width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; font-weight: 700; }
+.gbody h3 { text-transform: none; letter-spacing: 0; font-size: 15px; color: var(--ink); margin: 3px 0 6px; }
+.gwhen { font-size: 13px; color: var(--ink-2); margin-bottom: 6px; }
+.gbody ol { margin: 0 0 10px; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; }
+.gfoot { font-size: 13px; color: var(--ink-2); border-top: 1px solid var(--grid); padding-top: 10px; }
+.linkbtn.accent { color: var(--accent); font-size: inherit; text-decoration: underline; }
 /* overlays */
 #tt { position: fixed; z-index: 60; background: var(--surface); color: var(--ink); border: 1px solid var(--ring-strong); border-radius: 8px; padding: 7px 10px; font-size: 12.5px; max-width: 340px; box-shadow: 0 6px 24px rgba(0,0,0,.14); pointer-events: none; }
 .toast { position: fixed; bottom: 18px; left: 50%; transform: translate(-50%, 20px); opacity: 0; background: var(--ink); color: var(--page); padding: 10px 16px; border-radius: 10px; z-index: 70; transition: .2s; max-width: 90vw; pointer-events: none; }
@@ -309,6 +318,7 @@ tr.vrow > td { padding: 0 0 12px 18px; background: var(--surface-2); }
     <div id="ctx"></div>
     <div class="hdr-actions">
       <a class="btn small ghost" href="https://hmi-platformsolutions.com/#tools" title="Back to the Platform Solutions site">← Platform Solutions</a>
+      <button class="btn small primary" data-do="guide" title="Step-by-step instructions">? Instructions</button>
       <button class="btn small loaded-only" data-do="report" title="Save a standalone HTML file with this container, scope and view">⤓ Download report</button>
       <button class="btn small" data-do="home" title="Clear the loaded file and go back to the start page">⌂ Home</button>
       <label class="btn small" title="Load a different export">Load file<input type="file" accept=".json,application/json" multiple hidden></label>
@@ -322,7 +332,7 @@ tr.vrow > td { padding: 0 0 12px 18px; background: var(--surface-2); }
     <button data-tab="map">Firing map</button>
     <button data-tab="compare">Compare versions<span class="badge" id="tabCmpCount"></span></button>
     <button data-tab="library">Drive library</button>
-    <button data-tab="help">How to export</button>
+    <button data-tab="help">Instructions</button>
   </nav>
 </div></header>
 <main id="main"></main>
@@ -1295,6 +1305,7 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
   }
   $('#modal').addEventListener('click', function (e) {
     var a = e.target.closest('[data-act]'); if (!a && e.target.id !== 'modal') return;
+    $('#modalBody').classList.remove('wide');
     var act = a ? a.getAttribute('data-act') : 'cancel';
     $('#modal').hidden = true;
     if (act === 'cmp') setVersions(S.cur.model.meta, S.pending);
@@ -1308,7 +1319,7 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
   window.addEventListener('dragleave', function () { dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) document.body.classList.remove('dragging'); });
   window.addEventListener('dragover', function (e) { e.preventDefault(); });
   window.addEventListener('drop', function (e) { e.preventDefault(); dragDepth = 0; document.body.classList.remove('dragging'); if (e.dataTransfer && e.dataTransfer.files.length) readFiles(e.dataTransfer.files); });
-  document.addEventListener('change', function (e) { if (e.target.matches('input[type=file]')) { readFiles(e.target.files); e.target.value = ''; } });
+  document.addEventListener('change', function (e) { if (e.target.matches('input[type=file]')) { $('#modal').hidden = true; readFiles(e.target.files); e.target.value = ''; } });
 
   function loadDemo(two) {
     var a = C.parseExport(GTMDemo.v2(), 'demo-v42.json');
@@ -1423,10 +1434,12 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
     var g = e.target.closest('[data-go]');
     if (g) { var p = g.getAttribute('data-go').split(':'); goEntity(p[0], p.slice(1).join(':')); return; }
     var t = e.target.closest('[data-tab]');
-    if (t) { go(t.getAttribute('data-tab')); return; }
+    if (t) { if (t.hasAttribute('data-close')) $('#modal').hidden = true; go(t.getAttribute('data-tab')); return; }
     var a = e.target.closest('[data-do]');
     if (!a) return;
     var d = a.getAttribute('data-do');
+    if (a.hasAttribute('data-close')) $('#modal').hidden = true;
+    if (d === 'guide') { openGuide(); return; }
     if (d === 'home') goHome();
     else if (d === 'lib-refresh') libLoad(false);
     else if (d === 'lib-rebuild') libLoad(true);
@@ -1504,7 +1517,7 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
       '<p class="lead">See every tag, trigger and variable, how they connect, and what needs fixing. Drop two versions of the same container to see what changed between them.</p>' +
       dropZone('Drag one or two GTM .json exports here', 'or click to choose files', true) +
       '<p class="privacy"><b>Private by design:</b> the file is read by your browser only. Nothing is uploaded or saved, and refreshing the page clears it.</p>' +
-      '<div class="row gap center"><button class="btn primary" data-tab="library">Open from Drive library</button><button class="btn" data-do="demo">Try a demo container</button><button class="btn" data-do="demo2">Try a demo comparison</button><button class="btn ghost" data-tab="help">How to export from GTM</button></div>' +
+      '<div class="row gap center"><button class="btn primary" data-tab="library">Open from Drive library</button><button class="btn" data-do="demo">Try a demo container</button><button class="btn" data-do="demo2">Try a demo comparison</button><button class="btn ghost" data-do="guide">Instructions</button></div>' +
       '</section>';
   }
 
@@ -2131,24 +2144,51 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
     renderLibList();
   });
 
+  /* ---------- instructions ---------- */
+  var GUIDE = [
+    { id: 'file', title: 'Audit a container from a file', when: 'You have a GTM export, or need to check one container right now.',
+      steps: ['In GTM, go to <b>Admin</b> &gt; <b>Export Container</b>.', 'Pick the <b>Live</b> version (or the version or workspace you need), then click <b>Export</b>. A .json file downloads.', 'Drag the file onto this page, or click <b>Load file</b> at the top.', 'Start on <b>Overview</b>, then open <b>Findings</b>.'],
+      go: { label: 'Load a file', act: 'pick-file' } },
+    { id: 'library', title: 'Open from the Drive library', when: 'The container is already saved in the Platform Solutions Drive library.',
+      steps: ['Click <b>Drive library</b>.', 'First time only: paste the service URL and access key (ask Brian), then click <b>Save and connect</b>.', 'Search for the <b>container name</b> or public ID.', 'Click <b>Audit latest</b>, or click the container name to pick any version.'],
+      go: { label: 'Open Drive library', tab: 'library' } },
+    { id: 'compare', title: 'Compare two versions', when: 'You need to know what changed between two versions.',
+      steps: ['<b>From the Drive library:</b> click <b>Compare latest 2</b>, or open a container, tick two versions and click <b>Compare selected</b>.', '<b>From files:</b> drag both exports onto the page at the same time.', 'Read the <b>Summary</b> first, then <b>Added</b>, <b>Removed</b> and <b>Edited</b>.', 'Check <b>Findings fixed</b> and <b>Findings introduced</b>. Use <b>Swap older/newer</b> if the order is backwards.'],
+      go: { label: 'Go to Compare', tab: 'compare', needs: 'prev' } },
+    { id: 'findings', title: 'Review findings and pick what to check', when: 'You are auditing for a purpose: pre-launch QA, conversions, consent or cleanup.',
+      steps: ['Open <b>Findings</b>.', 'Under <b>Audit scope</b>, pick a preset: Full audit, Pre-launch QA, Conversion tracking, Consent &amp; privacy or Cleanup.', 'Optional: turn <b>Platforms</b> on or off, or use <b>Choose individual checks</b>.', 'Work through <b>Failed</b> checks, critical and high first. Each one lists the items and <b>How to fix</b>.'],
+      go: { label: 'Go to Findings', tab: 'issues', needs: 'cur' } },
+    { id: 'troubleshoot', title: 'Troubleshoot a tag, trigger or variable', when: 'Something is not firing, or is firing when it should not.',
+      steps: ['Open <b>Explorer</b> and choose <b>Tags</b>, <b>Triggers</b> or <b>Variables</b>.', 'Search for the name exactly as it shows in GTM, then click it.', 'See what fires it, its exceptions, the variables it reads, its settings and any findings. Click a linked item to follow the chain.', 'For the big picture, open <b>Firing map</b> and hover a box. Confirm any fix in GTM <b>Preview</b> mode.'],
+      go: { label: 'Go to Explorer', tab: 'explorer', needs: 'cur' } },
+    { id: 'share', title: 'Share the results', when: 'Someone else needs to see the audit or act on it.',
+      steps: ['<b>Copy as checklist</b> (on Findings): paste into Teams or an email.', '<b>Download report</b> (top right): one .html file with the container and your exact view. Share it like a client file (Teams or Drive, never public).', '<b>Copy link with this scope</b> (on Findings): shares the checks you picked, not the container data.', 'Comparing? Use <b>Copy change log</b> on Compare.'],
+      go: { label: 'Go to Findings', tab: 'issues', needs: 'cur' } }
+  ];
+  function guideCards() {
+    return '<div class="guide">' + GUIDE.map(function (g, n) {
+      var btn = '';
+      if (g.go) {
+        var ok = !g.go.needs || (g.go.needs === 'cur' ? S.cur : S.prev);
+        btn = ok ? (g.go.act === 'pick-file' ? '<label class="btn small">' + esc(g.go.label) + '<input type="file" accept=".json,application/json" multiple hidden></label>' : '<button class="btn small" data-tab="' + g.go.tab + '" data-close="1">' + esc(g.go.label) + ' →</button>')
+          : '<span class="muted tiny">' + (g.go.needs === 'prev' ? 'Load two versions first.' : 'Load a container first.') + '</span>';
+      }
+      return '<div class="gcard" id="guide-' + g.id + '"><div class="gnum">' + (n + 1) + '</div><div class="gbody"><h3>' + esc(g.title) + '</h3><p class="gwhen"><b>Use this when:</b> ' + esc(g.when) + '</p><ol>' + g.steps.map(function (s) { return '<li>' + s + '</li>'; }).join('') + '</ol>' + btn + '</div></div>';
+    }).join('') + '</div><p class="gfoot"><b>Start over:</b> click <b>⌂ Home</b>. <b>New here?</b> <button class="linkbtn accent" data-do="demo" data-close="1">Try the demo container</button> first. <b>Privacy:</b> files are read in your browser; nothing is uploaded.</p>';
+  }
+  function openGuide() {
+    $('#modalBody').innerHTML = '<div class="row gap" style="justify-content:space-between;align-items:center"><h2 style="margin:0">Instructions</h2><button class="btn small ghost" data-act="cancel" aria-label="Close instructions">✕ Close</button></div><p class="muted">Pick what you want to do. Each card is a few short steps.</p>' + guideCards();
+    $('#modalBody').classList.add('wide');
+    $('#modal').hidden = false;
+  }
   function viewHelp() {
-    return '<section class="card narrow"><h2>How to export a container from GTM</h2><ol class="steps">' +
-      '<li>Open the container in Google Tag Manager.</li>' +
-      '<li>Go to <b>Admin</b>, then under <b>Container</b> click <b>Export Container</b>.</li>' +
-      '<li>Under <b>Choose a version or workspace</b>, pick the version to audit. The <b>Live</b> version is usually the right one; pick a workspace to audit changes that are not yet published.</li>' +
-      '<li>Click <b>Export</b>. A <span class="mono">.json</span> file downloads.</li>' +
-      '<li>Drag the file onto this page (or click the drop area and choose it).</li></ol>' +
-      '<h3>To compare two versions</h3><ol class="steps"><li>Export the two versions you want to compare (for example the Live version and the one before it). In Export Container, the version picker lists every saved version.</li><li>Drop both files at once. The higher version number is treated as the newer one; use <b>Swap older/newer</b> if needed.</li></ol>' +
-      '<h3>What the audit checks</h3><ul class="plain">' +
+    return '<section class="card"><h2>Instructions</h2><p class="muted">Pick what you want to do. Each card is a few short steps.</p>' + guideCards() + '</section>' +
+      '<section class="card narrow"><h2>What the audit checks</h2><ul class="plain">' +
       '<li><b>Tracking correctness:</b> missing or deleted triggers and variables, tags with no trigger, tags blocked by their own trigger, empty GA4 event names, missing Google Ads / Floodlight IDs, Conversion Linker, duplicate tags, conversions on every page or set to Unlimited, sunset UA/Optimize tags.</li>' +
       '<li><b>Consent & privacy:</b> Consent Mode defaults or a CMP tag, non-Google tags with no consent setting, possible personal data (email, phone, name, address) passed to tags.</li>' +
       '<li><b>Hygiene & cleanup:</b> paused tags, unused triggers and variables, default names, empty folders.</li>' +
       '<li><b>Security & performance:</b> http:// resources, document.write, eval(), Custom JavaScript variables with no return, Custom HTML on every page, third-party domains.</li></ul>' +
-      '<p class="muted small">Findings come from fixed rules applied to the export. They show what the configuration says, not what fires on the live site, so confirm fixes in GTM Preview mode. The health score is a guide weighted by severity, not a grade.</p>' +
-      '<h3>Open from the Drive library</h3><p>The <b>Drive library</b> tab lists every container in the Platform Solutions GTM library folder by container name and public ID, with each saved version. Click <b>Audit latest</b>, <b>Compare latest 2</b>, or open a container to pick any version or tick two to compare. The first time, enter the library service URL and the access key (ask Brian).</p>' +
-      '<h3>Share what you see</h3><p><b>Download report</b> (top right) saves one .html file with the tool, the loaded export(s), your audit scope and the current tab. Anyone can double-click it to see the same view, no upload needed. It contains the container configuration, so share it the way you would any client file. <b>Copy link with this scope</b> shares only the checks, not the data.</p>' +
-      '<h3>Privacy</h3><p>The file is read in your browser only. Nothing is uploaded, stored or sent anywhere, and refreshing the page clears it.</p>' +
-      (S.cur ? '' : '<div class="row gap"><button class="btn" data-do="demo">Try a demo container</button></div>') + '</section>';
+      '<p class="muted small">Findings come from fixed rules applied to the export. They show what the configuration says, not what fires on the live site, so confirm fixes in GTM Preview mode. The health score is a guide weighted by severity, not a grade.</p></section>';
   }
 
   /* ---------- boot ---------- */
