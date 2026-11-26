@@ -2018,7 +2018,7 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
 
   /* ---------- Drive library ---------- */
   // After deploying the Apps Script library service, paste its Web app URL here so teammates only need the access key.
-  var LIBRARY_SERVICE_URL = '';
+  var LIBRARY_SERVICE_URL = 'https://script.google.com/macros/s/AKfycbzG9cofyMDNgPFf8e4S0WkRxx4_MotK4-X0i5rCzFPjUtwuuGxfoxX5RytIy-_en38GcQ/exec';
   S.lib = { status: 'idle', data: null, error: '', q: '', open: {}, sel: {}, progress: '', settings: false, versions: {}, vq: {}, vlimit: {} };
   function lsGet(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
   function lsSet(k, v) { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (e) { } }
@@ -2063,8 +2063,8 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
   function viewLibrary() {
     var cfg = libCfg();
     if (!cfg.url || !cfg.key || S.lib.settings) {
-      return '<section class="card narrow"><h2>Connect to the Drive library</h2><p class="muted">The library service reads the GTM container version JSONs in the Platform Solutions Drive folder. Ask Brian for the access key.</p>' +
-        '<form id="libForm" class="libform"><label>Library service URL<input type="url" name="url" placeholder="https://script.google.com/macros/s/…/exec" value="' + esc(cfg.url) + '" required></label>' +
+      return '<section class="card narrow"><h2>Connect to the Drive library</h2><p class="muted">The library reads the GTM container version JSONs in the Platform Solutions Drive folder. Enter the team access key (ask Brian).</p>' +
+        '<form id="libForm" class="libform">' + (LIBRARY_SERVICE_URL && !lsGet('gtm-lib-url') ? '<input type="hidden" name="url" value="' + esc(LIBRARY_SERVICE_URL) + '">' : '<label>Library service URL<input type="url" name="url" placeholder="https://script.google.com/macros/s/…/exec" value="' + esc(cfg.url) + '" required></label>') +
         '<label>Access key<input type="password" name="key" autocomplete="off" value="' + esc(cfg.key) + '" required></label>' +
         '<div class="row gap wrap"><button class="btn primary" type="submit">Save and connect</button>' + (cfg.key ? '<button class="btn ghost" type="button" data-do="lib-forget">Forget key on this computer</button>' : '') + (S.lib.settings && cfg.url && cfg.key ? '<button class="btn ghost" type="button" data-do="lib-settings">Cancel</button>' : '') + '</div></form>' +
         '<p class="muted small">The URL and key are saved in this browser only. Container files are fetched straight from the library into this page; nothing is uploaded anywhere else.</p></section>';
@@ -2157,7 +2157,7 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
       steps: ['In GTM, go to <b>Admin</b> &gt; <b>Export Container</b>.', 'Pick the <b>Live</b> version (or the version or workspace you need), then click <b>Export</b>. A .json file downloads.', 'Drag the file onto this page, or click <b>Load file</b> at the top.', 'Start on <b>Overview</b>, then open <b>Findings</b>.'],
       go: { label: 'Load a file', act: 'pick-file' } },
     { id: 'library', title: 'Open from the Drive library', when: 'The container is already saved in the Platform Solutions Drive library.',
-      steps: ['Click <b>Drive library</b>.', 'First time only: paste the service URL and access key (ask Brian), then click <b>Save and connect</b>.', 'Search for the <b>container name</b> or public ID.', 'Click <b>Audit latest</b>, or click the container name to pick any version.'],
+      steps: ['Click <b>Drive library</b>.', 'First time only: enter the access key (ask Brian), then click <b>Save and connect</b>.', 'Search for the <b>container name</b> or public ID.', 'Click <b>Audit latest</b>, or click the container name to pick any version.'],
       go: { label: 'Open Drive library', tab: 'library' } },
     { id: 'compare', title: 'Compare two versions', when: 'You need to know what changed between two versions.',
       steps: ['<b>From the Drive library:</b> click <b>Compare latest 2</b>, or open a container, tick two versions and click <b>Compare selected</b>.', '<b>From files:</b> drag both exports onto the page at the same time.', 'Read the <b>Summary</b> first, then <b>Added</b>, <b>Removed</b> and <b>Edited</b>.', 'Check <b>Findings fixed</b> and <b>Findings introduced</b>. Use <b>Swap older/newer</b> if the order is backwards.'],
