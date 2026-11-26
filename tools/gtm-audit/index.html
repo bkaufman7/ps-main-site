@@ -284,6 +284,7 @@ table.lib td.acts .btn { margin-left: 4px; }
 tr.vrow > td { padding: 0 0 12px 18px; background: var(--surface-2); }
 .vbox { background: var(--surface); border: 1px solid var(--ring); border-radius: 10px; padding: 10px; }
 .vbar { justify-content: space-between; margin-bottom: 6px; }
+.vsearch { width: 240px; }
 .btn[disabled] { opacity: .45; cursor: not-allowed; }
 .libform { display: flex; flex-direction: column; gap: 12px; margin: 12px 0; }
 .libform label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--ink-2); }
@@ -1441,11 +1442,12 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
     if (a.hasAttribute('data-close')) $('#modal').hidden = true;
     if (d === 'guide') { openGuide(); return; }
     if (d === 'home') goHome();
-    else if (d === 'lib-refresh') libLoad(false);
-    else if (d === 'lib-rebuild') libLoad(true);
+    else if (d === 'lib-refresh') libLoad();
+    else if (d === 'lib-vretry') { var vk = a.getAttribute('data-key'); delete S.lib.versions[vk]; libVersions(vk); }
+    else if (d === 'lib-more') { var mk = a.getAttribute('data-key'); S.lib.vlimit[mk] = (S.lib.vlimit[mk] || 50) + 100; renderLibList(); }
     else if (d === 'lib-settings') { S.lib.settings = !S.lib.settings; render(); }
     else if (d === 'lib-forget') { lsSet('gtm-lib-key', ''); S.lib.data = null; S.lib.status = 'idle'; S.lib.settings = false; render(); toast('Access key removed from this browser.'); }
-    else if (d === 'lib-toggle') { var lk = a.getAttribute('data-key'); S.lib.open[lk] = !S.lib.open[lk]; renderLibList(); }
+    else if (d === 'lib-toggle') { var lk = a.getAttribute('data-key'); S.lib.open[lk] = !S.lib.open[lk]; if (S.lib.open[lk]) libVersions(lk); else renderLibList(); }
     else if (d === 'lib-open') libOpen(a.getAttribute('data-ids').split(','));
     else if (d === 'lib-cmp') libOpen(Object.keys(S.lib.sel[a.getAttribute('data-key')] || {}));
     else if (d === 'report') downloadReport();
@@ -1473,6 +1475,8 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
   });
   document.addEventListener('toggle', function (e) { if (e.target.classList && e.target.classList.contains('scope-pick')) S.ui.pickOpen = e.target.open; }, true);
   document.addEventListener('input', function (e) {
+    var vqk = e.target.getAttribute && e.target.getAttribute('data-vq');
+    if (vqk) { S.lib.vq[vqk] = e.target.value; S.lib._focusVq = vqk; renderLibList(); return; }
     var k = e.target.getAttribute('data-bind'); if (!k) return;
     var v = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
     var parts = k.split('.'); S[parts[0]][parts[1]] = v;
@@ -2015,7 +2019,7 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
   /* ---------- Drive library ---------- */
   // After deploying the Apps Script library service, paste its Web app URL here so teammates only need the access key.
   var LIBRARY_SERVICE_URL = '';
-  S.lib = { status: 'idle', data: null, error: '', q: '', open: {}, sel: {}, progress: '', settings: false };
+  S.lib = { status: 'idle', data: null, error: '', q: '', open: {}, sel: {}, progress: '', settings: false, versions: {}, vq: {}, vlimit: {} };
   function lsGet(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
   function lsSet(k, v) { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (e) { } }
   function libCfg() { return { url: lsGet('gtm-lib-url') || LIBRARY_SERVICE_URL, key: lsGet('gtm-lib-key') }; }
@@ -2027,44 +2031,33 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
         function () { throw new Error('Could not reach the library service. Check the service URL, and that the Apps Script deployment is set to Execute as: Me, Who has access: Anyone.'); })
       .then(function (j) { if (!j.ok) throw new Error(j.error || 'Library service error.'); return j; });
   }
-  function libLoad(rebuild) {
-    S.lib.status = 'loading'; S.lib.error = ''; S.lib.progress = 'Reading the library folder…';
+  function libLoad() {
+    S.lib.status = 'loading'; S.lib.error = ''; S.lib.progress = 'Loading the library summary…';
     if (S.tab === 'library') render();
-    var rounds = 0;
-    (function step(first) {
-      libCall({ action: 'library', rebuild: first && rebuild ? '1' : '0' }).then(function (j) {
-        S.lib.data = j;
-        if (j.partial && ++rounds < 15) { S.lib.progress = 'Indexing… ' + j.indexed + ' files so far (large libraries take a few rounds the first time).'; if (S.tab === 'library') render(); step(false); return; }
-        S.lib.status = 'ready'; if (S.tab === 'library') render();
-      }).catch(function (e) { S.lib.status = 'error'; S.lib.error = e.message; if (S.tab === 'library') render(); });
-    })(true);
+    libCall({ action: 'library' }).then(function (j) {
+      S.lib.data = j; S.lib.versions = {}; S.lib.status = 'ready';
+      if (S.tab === 'library') render();
+    }).catch(function (e) { S.lib.status = 'error'; S.lib.error = e.message; if (S.tab === 'library') render(); });
+  }
+  function libVersions(folderId) {
+    S.lib.versions = S.lib.versions || {};
+    var v = S.lib.versions[folderId];
+    if (v && (v.status === 'loading' || v.status === 'ready')) return;
+    S.lib.versions[folderId] = { status: 'loading' };
+    renderLibList();
+    libCall({ action: 'versions', folderId: folderId }).then(function (j) {
+      S.lib.versions[folderId] = { status: 'ready', list: j.versions };
+      renderLibList();
+    }).catch(function (e) { S.lib.versions[folderId] = { status: 'error', error: e.message }; renderLibList(); });
   }
   function libGroups() {
-    var d = S.lib.data; if (!d) return { groups: [], other: [] };
-    var groups = {}, other = [];
-    d.files.forEach(function (f) {
-      var m = f.meta || {};
-      if (m.error) { other.push(f); return; }
-      var key = m.containerId ? 'c' + m.accountId + '/' + m.containerId : m.publicId ? 'p' + m.publicId : 'f' + f.folderPath;
-      var g = groups[key] = groups[key] || { key: key, versions: [], folders: {} };
-      g.versions.push(f); g.folders[f.folderPath || '(top level)'] = 1;
-    });
-    var list = Object.keys(groups).map(function (k) {
-      var g = groups[k];
-      g.versions.sort(function (a, b) { return (Number(b.meta.versionId) || 0) - (Number(a.meta.versionId) || 0) || b.updated - a.updated; });
-      var latest = g.versions[0].meta, named = g.versions.filter(function (v) { return v.meta.containerName; })[0];
-      g.name = named ? named.meta.containerName : Object.keys(g.folders)[0];
-      g.publicId = latest.publicId || (g.versions.filter(function (v) { return v.meta.publicId; })[0] || { meta: {} }).meta.publicId || '';
-      g.accountId = latest.accountId; g.containerId = latest.containerId;
-      g.latest = g.versions[0];
-      return g;
+    var d = S.lib.data; if (!d) return [];
+    return d.containers.map(function (c) {
+      return { key: c.folderId, folderId: c.folderId, name: c.containerName || c.publicId || c.path, path: c.path, publicId: c.publicId, accountId: c.accountId, containerId: c.containerId, count: c.versionCount, latest: c.latest || [] };
     }).sort(function (a, b) { return a.name.localeCompare(b.name); });
-    return { groups: list, other: other };
   }
-  function verDate(f) {
-    var m = f.meta;
-    if (m.exportTime) return m.exportTime.slice(0, 16);
-    var d = new Date(m.modifiedTime || f.updated);
+  function fmtDate(s) {
+    var d = new Date(s);
     return isNaN(d) ? '' : d.toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   }
   function viewLibrary() {
@@ -2076,46 +2069,60 @@ if (typeof module !== 'undefined') module.exports = GTMDemo;
         '<div class="row gap wrap"><button class="btn primary" type="submit">Save and connect</button>' + (cfg.key ? '<button class="btn ghost" type="button" data-do="lib-forget">Forget key on this computer</button>' : '') + (S.lib.settings && cfg.url && cfg.key ? '<button class="btn ghost" type="button" data-do="lib-settings">Cancel</button>' : '') + '</div></form>' +
         '<p class="muted small">The URL and key are saved in this browser only. Container files are fetched straight from the library into this page; nothing is uploaded anywhere else.</p></section>';
     }
-    if (S.lib.status === 'idle') setTimeout(function () { libLoad(false); }, 0);
-    var d = S.lib.data, g = libGroups(), nVer = g.groups.reduce(function (s, x) { return s + x.versions.length; }, 0);
+    if (S.lib.status === 'idle') setTimeout(libLoad, 0);
+    var d = S.lib.data, g = libGroups(), nVer = g.reduce(function (s, x) { return s + x.count; }, 0);
+    var building = d && d.foldersTotal && d.foldersChecked < d.foldersTotal;
     var h = '<section class="card"><div class="card-h"><div><h2>Drive library' + (d ? ': ' + esc(d.folderName) : '') + '</h2><div class="muted small">' +
-      (d ? plural(g.groups.length, 'container') + ' · ' + plural(nVer, 'version') + (g.other.length ? ' · ' + plural(g.other.length, 'other file') : '') + ' · indexed ' + esc(new Date(d.updated).toLocaleString()) : 'Not loaded yet') + '</div></div>' +
-      '<div class="row gap wrap"><button class="btn small" data-do="lib-refresh">Refresh</button><button class="btn small ghost" data-do="lib-rebuild" title="Re-read every file (slower)">Rebuild index</button><button class="btn small ghost" data-do="lib-settings">Connection settings</button></div></div>';
+      (d ? plural(g.length, 'container') + ' · ' + nVer.toLocaleString() + ' versions · summary updated ' + esc(fmtDate(d.updated) || 'not yet') : 'Not loaded yet') + '</div></div>' +
+      '<div class="row gap wrap"><button class="btn small" data-do="lib-refresh">Refresh</button><button class="btn small ghost" data-do="lib-settings">Connection settings</button></div></div>';
     if (S.lib.status === 'loading') h += '<div class="libstatus"><span class="spinner" aria-hidden="true"></span>' + esc(S.lib.progress) + '</div>';
     if (S.lib.status === 'error') h += '<div class="warnbox"><b>Could not load the library.</b> ' + esc(S.lib.error) + '</div>';
-    h += '<div class="row gap wrap"><input type="search" placeholder="Search container name, public ID, account or version name" data-bind="lib.q" value="' + esc(S.lib.q) + '" aria-label="Search library" style="width:420px"></div></section><section id="libList"></section>';
+    if (d && !d.foldersTotal) h += '<div class="warnbox">The library summary has not been built yet. It builds in the background every 2 hours; ask Brian to run <b>buildIndex</b> once in the GTM Library Service script to start it now.</div>';
+    else if (building) h += '<div class="warnbox">The library summary is still being built: ' + d.foldersChecked + ' of ' + d.foldersTotal + ' folders checked so far. Missing containers will appear after the next background run (every 2 hours).</div>';
+    h += '<p class="muted small">Container counts and latest versions come from the summary. Opening a container lists its versions live from Drive.</p>' +
+      '<div class="row gap wrap"><input type="search" placeholder="Search container name, public ID or account" data-bind="lib.q" value="' + esc(S.lib.q) + '" aria-label="Search library" style="width:420px"></div></section><section id="libList"></section>';
     return h;
   }
   function renderLibList() {
     var el = $('#libList'); if (!el) return;
     if (!S.lib.data) { el.innerHTML = ''; return; }
-    var g = libGroups(), q = S.lib.q.toLowerCase();
-    var groups = g.groups.filter(function (x) {
-      if (!q) return true;
-      return (x.name + ' ' + x.publicId + ' ' + x.accountId + ' ' + x.containerId + ' ' + Object.keys(x.folders).join(' ') + ' ' + x.versions.map(function (v) { return v.meta.versionName + ' ' + v.name; }).join(' ')).toLowerCase().indexOf(q) >= 0;
+    var q = S.lib.q.toLowerCase();
+    var groups = libGroups().filter(function (x) {
+      return !q || (x.name + ' ' + x.publicId + ' ' + x.accountId + ' ' + x.containerId + ' ' + x.path).toLowerCase().indexOf(q) >= 0;
     });
-    var h = '<div class="card"><div class="tablewrap"><table class="lib"><thead><tr><th>Container name</th><th>Public ID</th><th>Account</th><th class="num">Versions</th><th>Latest version</th><th>Latest date</th><th></th></tr></thead><tbody>';
-    if (!groups.length) h += '<tr><td colspan="7" class="muted">' + (q ? 'No containers match this search.' : 'No GTM version JSONs found in the folder yet.') + '</td></tr>';
+    var h = '<div class="card"><div class="tablewrap"><table class="lib"><thead><tr><th>Container name</th><th>Public ID</th><th>Account</th><th class="num">Versions</th><th>Latest version</th><th>Saved</th><th></th></tr></thead><tbody>';
+    if (!groups.length) h += '<tr><td colspan="7" class="muted">' + (q ? 'No containers match this search.' : 'No containers in the summary yet.') + '</td></tr>';
     groups.forEach(function (x) {
-      var open = !!S.lib.open[x.key], L = x.latest.meta;
-      h += '<tr class="grow' + (open ? ' open' : '') + '"><td><button class="linkbtn b" data-do="lib-toggle" data-key="' + esc(x.key) + '" aria-expanded="' + open + '">' + (open ? '▾ ' : '▸ ') + esc(x.name) + '</button>' + (Object.keys(x.folders)[0] !== x.name ? '<div class="muted tiny">Folder: ' + esc(Object.keys(x.folders).join(', ')) + '</div>' : '') + '</td>' +
-        '<td class="mono">' + esc(x.publicId || '-') + '</td><td class="mono">' + esc(x.accountId || '-') + '</td><td class="num">' + x.versions.length + '</td>' +
-        '<td>v' + esc(L.versionId || '?') + (L.versionName ? ' <span class="muted">' + esc(L.versionName) + '</span>' : '') + '</td><td class="small">' + esc(verDate(x.latest)) + '</td>' +
-        '<td class="acts"><button class="btn small" data-do="lib-open" data-ids="' + esc(x.latest.id) + '">Audit latest</button>' + (x.versions.length > 1 ? '<button class="btn small" data-do="lib-open" data-ids="' + esc(x.versions[1].id + ',' + x.latest.id) + '">Compare latest 2</button>' : '') + '</td></tr>';
+      var open = !!S.lib.open[x.key], L = x.latest[0] || {};
+      h += '<tr class="grow' + (open ? ' open' : '') + '"><td><button class="linkbtn b" data-do="lib-toggle" data-key="' + esc(x.key) + '" aria-expanded="' + open + '">' + (open ? '▾ ' : '▸ ') + esc(x.name) + '</button>' + (x.path && x.path !== x.publicId && x.path !== x.name ? '<div class="muted tiny">Folder: ' + esc(x.path) + '</div>' : '') + '</td>' +
+        '<td class="mono">' + esc(x.publicId || '-') + '</td><td class="mono">' + esc(x.accountId || '-') + '</td><td class="num">' + x.count.toLocaleString() + '</td>' +
+        '<td>' + (L.versionId ? 'v' + esc(L.versionId) : '') + (L.versionName ? ' <span class="muted">' + esc(L.versionName) + '</span>' : '') + '</td><td class="small">' + esc(fmtDate(L.saved)) + '</td>' +
+        '<td class="acts">' + (L.id ? '<button class="btn small" data-do="lib-open" data-ids="' + esc(L.id) + '">Audit latest</button>' : '') + (x.latest.length > 1 ? '<button class="btn small" data-do="lib-open" data-ids="' + esc(x.latest[1].id + ',' + L.id) + '">Compare latest 2</button>' : '') + '</td></tr>';
       if (open) {
+        var vs = (S.lib.versions || {})[x.folderId] || { status: 'idle' };
         var sel = S.lib.sel[x.key] || {}, nSel = Object.keys(sel).length;
-        h += '<tr class="vrow"><td colspan="7"><div class="vbox"><div class="row gap wrap vbar"><span class="muted small">Tick two versions to compare them.</span><button class="btn small primary" data-do="lib-cmp" data-key="' + esc(x.key) + '"' + (nSel === 2 ? '' : ' disabled') + '>Compare selected (' + nSel + '/2)</button></div>' +
-          '<table class="vers"><thead><tr><th></th><th>Version</th><th>Version name</th><th>Date</th><th class="num">Tags</th><th class="num">Triggers</th><th class="num">Variables</th><th>File</th><th></th></tr></thead><tbody>' +
-          x.versions.map(function (v) {
-            var m = v.meta;
-            return '<tr><td><input type="checkbox" data-libsel="' + esc(x.key) + '" value="' + esc(v.id) + '"' + (sel[v.id] ? ' checked' : '') + ' aria-label="Select version ' + esc(m.versionId) + '"></td><td class="b">v' + esc(m.versionId || '?') + (m.deleted ? ' <span class="pill warn">deleted</span>' : '') + '</td><td>' + esc(m.versionName || '') + (m.description ? '<div class="muted tiny">' + esc(m.description) + '</div>' : '') + '</td><td class="small">' + esc(verDate(v)) + '</td>' +
-              '<td class="num">' + m.tags + '</td><td class="num">' + m.triggers + '</td><td class="num">' + m.variables + '</td><td class="muted small">' + esc(v.name) + '</td><td><button class="btn small" data-do="lib-open" data-ids="' + esc(v.id) + '">Audit</button></td></tr>';
-          }).join('') + '</tbody></table></div></td></tr>';
+        h += '<tr class="vrow"><td colspan="7"><div class="vbox">';
+        if (vs.status === 'loading' || vs.status === 'idle') h += '<div class="libstatus"><span class="spinner" aria-hidden="true"></span>Listing versions from Drive…</div>';
+        else if (vs.status === 'error') h += '<div class="warnbox">' + esc(vs.error) + ' <button class="btn small" data-do="lib-vretry" data-key="' + esc(x.key) + '">Try again</button></div>';
+        else {
+          var list = vs.list, fq = (S.lib.vq[x.key] || '').toLowerCase();
+          var shown = list.filter(function (v) { return !fq || ('v' + v.versionId + ' ' + v.versionName + ' ' + v.description + ' ' + v.name).toLowerCase().indexOf(fq) >= 0; });
+          var limit = S.lib.vlimit[x.key] || 50;
+          h += '<div class="row gap wrap vbar"><span class="row gap wrap"><input type="search" class="vsearch" placeholder="Filter versions (number or name)" data-vq="' + esc(x.key) + '" value="' + esc(S.lib.vq[x.key] || '') + '" aria-label="Filter versions"><span class="muted small">' + shown.length.toLocaleString() + ' of ' + list.length.toLocaleString() + ' versions. Tick two to compare.</span></span><button class="btn small primary" data-do="lib-cmp" data-key="' + esc(x.key) + '"' + (nSel === 2 ? '' : ' disabled') + '>Compare selected (' + nSel + '/2)</button></div>' +
+            '<table class="vers"><thead><tr><th></th><th>Version</th><th>Version name</th><th>Saved</th><th class="num">Tags</th><th class="num">Triggers</th><th class="num">Variables</th><th></th></tr></thead><tbody>' +
+            shown.slice(0, limit).map(function (v) {
+              var n = function (k) { return v[k] == null ? '<span class="muted">-</span>' : v[k]; };
+              return '<tr><td><input type="checkbox" data-libsel="' + esc(x.key) + '" value="' + esc(v.id) + '"' + (sel[v.id] ? ' checked' : '') + ' aria-label="Select version ' + esc(v.versionId) + '"></td><td class="b">' + (v.versionId ? 'v' + esc(v.versionId) : esc(v.name)) + (v.deleted ? ' <span class="pill warn">deleted</span>' : '') + '</td><td>' + esc(v.versionName || '') + (v.description ? '<div class="muted tiny">' + esc(v.description) + '</div>' : '') + '</td><td class="small">' + esc(fmtDate(v.saved)) + '</td>' +
+                '<td class="num">' + n('tags') + '</td><td class="num">' + n('triggers') + '</td><td class="num">' + n('variables') + '</td><td><button class="btn small" data-do="lib-open" data-ids="' + esc(v.id) + '">Audit</button></td></tr>';
+            }).join('') + '</tbody></table>' + (shown.length > limit ? '<div class="row center" style="margin-top:8px"><button class="btn small" data-do="lib-more" data-key="' + esc(x.key) + '">Show 100 more</button></div>' : '');
+        }
+        h += '</div></td></tr>';
       }
     });
     h += '</tbody></table></div></div>';
-    if (g.other.length) h += '<details class="card outscope"><summary>' + plural(g.other.length, 'other JSON file') + (g.other.length === 1 ? ' that is' : ' that are') + ' not a GTM container version</summary><ul class="plain small">' + g.other.map(function (f) { return '<li>' + esc((f.folderPath ? f.folderPath + ' / ' : '') + f.name) + ' <span class="muted">(' + esc(f.meta.error) + ')</span></li>'; }).join('') + '</ul></details>';
     el.innerHTML = h;
+    var keepFocus = S.lib._focusVq;
+    if (keepFocus) { var inp = el.querySelector('input[data-vq="' + keepFocus + '"]'); if (inp) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); } S.lib._focusVq = null; }
   }
   function libOpen(ids) {
     toast('Opening from the Drive library…');
